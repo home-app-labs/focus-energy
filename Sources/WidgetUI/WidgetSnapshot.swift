@@ -102,13 +102,43 @@ public struct WidgetSnapshot: Codable, Equatable {
         points.last { $0.date <= date } ?? points.first
     }
 
-    /// The snapshot as it should look at `date`: a countdown that has run out shows as finished.
-    public func resolved(at date: Date) -> WidgetSnapshot {
-        guard runState == .running, let endsAt, date >= endsAt else { return self }
+    /// The snapshot as it should look at `date`, for the moments when the app has not written a newer one:
+    /// a countdown that has run out shows as finished, and after midnight the day starts from zero.
+    public func resolved(at date: Date, calendar: Calendar = .current) -> WidgetSnapshot {
         var copy = self
-        copy.runState = .finished
+        if runState == .running, let endsAt, date >= endsAt {
+            copy.runState = .finished
+            copy.endsAt = nil
+            copy.remainingSeconds = 0
+        }
+        guard let written = updatedAt, !calendar.isDate(written, inSameDayAs: date), date > written else { return copy }
+        // A timer still counting down across midnight keeps its numbers until it ends.
+        if copy.runState == .running { return copy }
+
+        let today = calendar.startOfDay(for: date)
+        copy.phase = .idle
+        copy.runState = .idle
         copy.endsAt = nil
         copy.remainingSeconds = 0
+        copy.points = [Point(date: today, coins: 0, breakMinutes: 0, recommendedRest: 0, energy: 1,
+                             moodEmoji: "😴", moodTitle: "Not started yet", advice: "Pick a length and start.")]
+        if week.contains(where: { calendar.isDate($0.day, inSameDayAs: date) }) {
+            copy.week = week.map { day in
+                var day = day
+                day.isToday = calendar.isDate(day.day, inSameDayAs: date)
+                day.isFuture = calendar.startOfDay(for: day.day) > today
+                return day
+            }
+        } else {
+            // A new week has begun: the same seven labels, moved on by whole weeks, all still empty.
+            let first = calendar.startOfDay(for: week.first?.day ?? today)
+            let weeks = (calendar.dateComponents([.day], from: first, to: today).day ?? 0) / 7
+            copy.week = week.map { old in
+                let moved = calendar.date(byAdding: .day, value: weeks * 7, to: calendar.startOfDay(for: old.day)) ?? old.day
+                return Day(day: moved, label: old.label, coins: 0, emoji: "😴",
+                           isToday: calendar.isDate(moved, inSameDayAs: date), isFuture: moved > today)
+            }
+        }
         return copy
     }
 }

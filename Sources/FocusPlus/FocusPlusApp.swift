@@ -91,16 +91,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let seconds = env["FOCUSPLUS_DEMO_SECONDS"].flatMap(Double.init) {
             TimerEngine.shared.startFocus(demoSeconds: seconds)
         }
-        for name in (env["FOCUSPLUS_SHOW"] ?? "").split(separator: ",") {
-            switch name {
-            case "stats": AppWindows.showStats()
-            case "settings": AppWindows.showSettings()
-            case "panel": AppWindows.showMain()
-            case "widgets": AppWindows.showWidgetPreview()
-            case "log": AppWindows.showLog()
-            case "phone": AppWindows.showPhoneSetup()
-            default: break
+        func open(_ names: String?) {
+            for name in (names ?? "").split(separator: ",") {
+                switch name {
+                case "stats": AppWindows.showStats()
+                case "settings": AppWindows.showSettings()
+                case "panel": AppWindows.showMain()
+                case "widgets": AppWindows.showWidgetPreview()
+                case "log": AppWindows.showLog()
+                case "phone": AppWindows.showPhoneSetup()
+                default: break
+                }
             }
+        }
+        open(env["FOCUSPLUS_SHOW"])
+        // The same list, opened four seconds in: for windows that should show the state after a demo timer has ended.
+        if let later = env["FOCUSPLUS_SHOW_LATER"] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 4) { open(later) }
         }
         if let action = env["FOCUSPLUS_DEMO_ACTION"] {
             DispatchQueue.main.asyncAfter(deadline: .now() + 2) {

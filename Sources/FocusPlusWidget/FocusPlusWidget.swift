@@ -35,9 +35,15 @@ struct FocusProvider: TimelineProvider {
         // One entry per projected minute, plus one at the moment the countdown ends.
         var dates = [now] + snapshot.points.map(\.date).filter { $0 > now }
         if snapshot.runState == .running, let end = snapshot.endsAt, end > now { dates.append(end) }
-        let entries = Array(Set(dates)).sorted().map { FocusEntry(date: $0, snapshot: snapshot) }
+        // An entry just after midnight, so the day starts from zero even if the app writes nothing new.
         let midnight = Calendar.current.startOfDay(for: now.addingTimeInterval(86400))
-        completion(Timeline(entries: entries, policy: .after(min(midnight, now.addingTimeInterval(3600)))))
+        dates.append(midnight.addingTimeInterval(1))
+        let entries = Array(Set(dates)).sorted().map { FocusEntry(date: $0, snapshot: snapshot) }
+        // The app asks for a reload whenever something changes, but the system may ignore that when the
+        // widget has used up its daily reload allowance. Reading the file again on a schedule heals that.
+        let waiting = snapshot.runState == .finished || snapshot.runState == .paused
+        let next = now.addingTimeInterval(waiting ? 10 * 60 : 30 * 60)
+        completion(Timeline(entries: entries, policy: .after(min(midnight.addingTimeInterval(5), next))))
     }
 }
 

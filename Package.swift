@@ -14,6 +14,6 @@ let package = Package(
             swiftSettings: [.unsafeFlags(["-application-extension"])],
             linkerSettings: [.unsafeFlags(["-Xlinker", "-e", "-Xlinker", "_NSExtensionMain"])]
         ),
-        .testTarget(name: "FocusPlusTests", dependencies: ["FocusPlus"], path: "Tests/FocusPlusTests"),
+        .testTarget(name: "FocusPlusTests", dependencies: ["FocusPlus", "WidgetUI"], path: "Tests/FocusPlusTests"),
     ]
 )

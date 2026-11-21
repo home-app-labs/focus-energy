@@ -148,7 +148,10 @@ public struct FocusWidgetView: View {
                         Image(systemName: symbol).font(.system(size: size * 0.085, weight: .semibold)).foregroundStyle(tint)
                     }
                     Text(caption).font(.system(size: size * 0.10, weight: .medium)).foregroundStyle(.white.opacity(0.65))
+                        .lineLimit(1).minimumScaleFactor(0.6)
                 }
+                // This line sits low in the circle, where there is less width than across the middle.
+                .frame(maxWidth: size * 0.60)
             }
             .padding(.horizontal, line + 4)
         }
@@ -194,7 +197,7 @@ public struct FocusWidgetView: View {
     private var caption: String {
         switch (snapshot.phase, snapshot.runState) {
         case (.focus, .finished): return "extend or rest"
-        case (_, .finished): return "break is over"
+        case (_, .finished): return "break over"
         case (_, .paused): return "paused"
         case (.focus, _): return "focus"
         case (.rest, _): return "break"
