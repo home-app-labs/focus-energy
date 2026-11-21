@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 import WidgetUI
 
 /// The app's own palette: cool tones for focus, fresh greens for rest, warm amber for energy.
@@ -144,7 +145,7 @@ private struct TallHover: ViewModifier {
             .animation(.easeOut(duration: 0.12), value: pressed)
             .animation(.easeOut(duration: 0.14), value: hovering)
             .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .onHover { hovering = $0 }
+            .handCursor(hovering: $hovering)
     }
 }
 
@@ -191,7 +192,33 @@ struct HoverLift<Content: View, Hit: Shape>: View {
             .animation(.easeOut(duration: 0.12), value: pressed)
             .animation(.easeOut(duration: 0.14), value: hovering)
             .contentShape(shape)
-            .onHover { hovering = $0 && enabled }
+            .handCursor(hovering: $hovering, enabled: enabled)
+    }
+}
+
+extension View {
+    /// Tracks the pointer and shows the pointing hand over the view, like a link.
+    func handCursor(hovering: Binding<Bool>, enabled: Bool = true) -> some View {
+        modifier(HandCursor(hovering: hovering, enabled: enabled))
+    }
+}
+
+private struct HandCursor: ViewModifier {
+    @Binding var hovering: Bool
+    var enabled: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .onHover { inside in
+                let now = inside && enabled
+                guard now != hovering else { return }
+                hovering = now
+                if now { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+            }
+            // A button can vanish under the pointer, for example when the timer starts. Give the arrow back.
+            .onDisappear {
+                if hovering { NSCursor.pop(); hovering = false }
+            }
     }
 }
 
