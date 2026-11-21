@@ -129,10 +129,22 @@ struct TallButtonStyle: ButtonStyle {
             )
             .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .strokeBorder(Color.primary.opacity(0.10), lineWidth: 1))
-            .brightness(configuration.isPressed ? -0.08 : 0)
-            .scaleEffect(configuration.isPressed ? 0.98 : 1)
-            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+            .modifier(TallHover(pressed: configuration.isPressed))
+    }
+}
+
+private struct TallHover: ViewModifier {
+    var pressed: Bool
+    @State private var hovering = false
+
+    func body(content: Content) -> some View {
+        content
+            .brightness(pressed ? -0.08 : (hovering ? 0.06 : 0))
+            .scaleEffect(pressed ? 0.98 : 1)
+            .animation(.easeOut(duration: 0.12), value: pressed)
+            .animation(.easeOut(duration: 0.14), value: hovering)
             .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .onHover { hovering = $0 }
     }
 }
 
@@ -158,11 +170,28 @@ struct ClockWedge: Shape {
 /// Press feedback shared by the round buttons.
 struct RoundPressStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .brightness(configuration.isPressed ? -0.1 : 0)
-            .scaleEffect(configuration.isPressed ? 0.92 : 1)
-            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
-            .contentShape(Circle())
+        HoverLift(pressed: configuration.isPressed, shape: Circle(), lift: 1.07) { configuration.label }
+    }
+}
+
+/// Grows and brightens a button a little under the pointer, and dips it when pressed.
+struct HoverLift<Content: View, Hit: Shape>: View {
+    var pressed: Bool
+    var shape: Hit
+    var lift: CGFloat
+    @ViewBuilder var content: () -> Content
+    @State private var hovering = false
+    @Environment(\.isEnabled) private var enabled
+
+    var body: some View {
+        content()
+            .brightness(pressed ? -0.1 : (hovering ? 0.07 : 0))
+            .scaleEffect(pressed ? 0.94 : (hovering ? lift : 1))
+            .shadow(color: .black.opacity(hovering && !pressed ? 0.35 : 0), radius: 6, y: 3)
+            .animation(.easeOut(duration: 0.12), value: pressed)
+            .animation(.easeOut(duration: 0.14), value: hovering)
+            .contentShape(shape)
+            .onHover { hovering = $0 && enabled }
     }
 }
 

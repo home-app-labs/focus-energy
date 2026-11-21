@@ -94,7 +94,7 @@ struct PopoverView: View {
 
     private func section<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(spacing: 8) {
-            Text(title).font(.caption).foregroundStyle(.secondary)
+            Text(title).font(.system(size: 13, weight: .medium)).foregroundStyle(.secondary)
             content()
         }
         .frame(maxWidth: .infinity)

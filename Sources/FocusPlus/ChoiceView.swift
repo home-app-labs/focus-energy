@@ -28,7 +28,7 @@ struct ChoiceView: View {
 
     private func group<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(spacing: 10) {
-            Text(title).font(.callout.weight(.medium)).foregroundStyle(.secondary)
+            Text(title).font(.system(size: 14, weight: .medium)).foregroundStyle(.secondary)
             content()
         }
         .frame(maxWidth: .infinity)
