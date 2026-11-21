@@ -1,0 +1,114 @@
+# Generates FocusPlusMobile.xcodeproj. Run `xcodegen` in this folder after changing it.
+name: FocusPlusMobile
+options:
+  bundleIdPrefix: dev.focusplus
+  deploymentTarget:
+    iOS: "17.0"
+    watchOS: "10.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    CODE_SIGN_STYLE: Automatic
+    # Set your team here, or pick it in Xcode under Signing & Capabilities for each target.
+    DEVELOPMENT_TEAM: ""
+targets:
+  FocusPlusMobile:
+    type: application
+    platform: iOS
+    sources:
+      - iOS
+      - Shared
+      - path: ../Sources/WidgetUI
+        group: WidgetUI
+    info:
+      path: iOS/Info.plist
+      properties:
+        CFBundleDisplayName: Focus Energy
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        UIBackgroundModes: [fetch]
+        BGTaskSchedulerPermittedIdentifiers: [dev.focusplus.mobile.refresh]
+        UIFileSharingEnabled: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.focusplus.mobile
+        CODE_SIGN_ENTITLEMENTS: iOS/App.entitlements
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        TARGETED_DEVICE_FAMILY: "1"
+    dependencies:
+      - target: FocusPlusMobileWidget
+      - target: FocusPlusWatch
+  FocusPlusMobileWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - iOSWidget
+      - Shared
+      - path: ../Sources/WidgetUI
+        group: WidgetUI
+    info:
+      path: iOSWidget/Info.plist
+      properties:
+        CFBundleDisplayName: Focus Energy
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.focusplus.mobile.widget
+        CODE_SIGN_ENTITLEMENTS: iOSWidget/Widget.entitlements
+        TARGETED_DEVICE_FAMILY: "1"
+  FocusPlusWatch:
+    type: application
+    platform: watchOS
+    sources:
+      - Watch
+      - Shared
+      - path: ../Sources/WidgetUI
+        group: WidgetUI
+    info:
+      path: Watch/Info.plist
+      properties:
+        CFBundleDisplayName: Focus Energy
+        WKApplication: true
+        WKCompanionAppBundleIdentifier: dev.focusplus.mobile
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.focusplus.mobile.watchkitapp
+        CODE_SIGN_ENTITLEMENTS: Watch/Watch.entitlements
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    dependencies:
+      - target: FocusPlusWatchWidget
+  FocusPlusWatchWidget:
+    type: app-extension
+    platform: watchOS
+    sources:
+      - WatchWidget
+      - Shared
+      - path: ../Sources/WidgetUI
+        group: WidgetUI
+    info:
+      path: WatchWidget/Info.plist
+      properties:
+        CFBundleDisplayName: Focus Energy
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.focusplus.mobile.watchkitapp.widget
+        CODE_SIGN_ENTITLEMENTS: WatchWidget/WatchWidget.entitlements
+schemes:
+  FocusPlusMobile:
+    build:
+      targets:
+        FocusPlusMobile: all
+    run:
+      config: Debug
+  FocusPlusWatch:
+    build:
+      targets:
+        FocusPlusWatch: all
+    run:
+      config: Debug
