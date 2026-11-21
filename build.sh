@@ -70,6 +70,8 @@ for arg in "$@"; do
             "$LSREGISTER" -f "$APP" >/dev/null 2>&1 || true
             pluginkit -a "$APP/Contents/PlugIns/FocusPlusWidget.appex" >/dev/null 2>&1 || true
             pkill -x FocusPlusWidget 2>/dev/null || true
+            # The system's widget service keeps drawing the old version until it restarts. It comes back by itself.
+            killall chronod 2>/dev/null || true
             ;;
         --run) open "$APP" || { /bin/sleep 2; open "$APP"; } ;;
     esac

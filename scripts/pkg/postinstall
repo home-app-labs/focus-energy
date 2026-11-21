@@ -5,6 +5,10 @@ USER_NAME="$(/usr/bin/stat -f%Su /dev/console)"
 if [ -n "$USER_NAME" ] && [ "$USER_NAME" != "root" ]; then
     /usr/sbin/chown -R "$USER_NAME" "$APP" || true
     /usr/bin/pkill -x FocusPlus || true
+    # Desktop widgets keep showing the old version until the system's widget service restarts.
+    # It is restarted here for this user only and comes back by itself within a second.
+    /usr/bin/pkill -x FocusPlusWidget || true
+    /usr/bin/pkill -u "$USER_NAME" -x chronod || true
     /usr/bin/sudo -u "$USER_NAME" /usr/bin/open "$APP" || true
 fi
 exit 0
