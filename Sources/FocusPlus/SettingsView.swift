@@ -19,7 +19,7 @@ struct SettingsView: View {
             .pickerStyle(.segmented).labelsHidden().frame(width: 380).padding(.top, 14)
             if tab == 0 { modes } else if tab == 1 { general } else { phone }
         }
-        .frame(width: 540, height: tab == 0 ? 560 : (tab == 1 ? 640 : 680))
+        .frame(width: 540, height: tab == 0 ? 560 : (tab == 1 ? 640 : 760))
         .onAppear {
             extensionsText = settings.extensionOptions.map(String.init).joined(separator: ", ")
             editing = settings.currentMode
@@ -152,6 +152,15 @@ struct SettingsView: View {
                 Toggle("Open the choice window", isOn: $settings.popUpWhenFinished)
                 Toggle("Play a sound", isOn: $settings.playSounds)
                 Toggle("Show a notification", isOn: $settings.showNotifications)
+            }
+            Section("On this Mac, when no timer is running") {
+                Toggle("Remind me when I work without a timer", isOn: $settings.remindToStart)
+                if settings.remindToStart {
+                    Stepper("After \(settings.remindAfterMinutes) min at the keyboard or mouse",
+                            value: $settings.remindAfterMinutes, in: 5...60, step: 5)
+                }
+                Text("Repeats every 15 min while you keep working. Stops for the day once the daily focus goal is reached.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
             Section("On your phone") {
                 VStack(alignment: .leading, spacing: 10) {

@@ -21,6 +21,7 @@ Most timers count your work and forget your rest. Focus Energy tracks both and s
 - **Energy.** A bar that drops when you push through and recovers when you rest, with a verdict for each day of the week.
 - **Three modes.** Light, Moderate and Hardcore, each with its own focus and rest targets. Moderate is 6 hours of focus and 2 hours of rest.
 - **Everywhere you look.** Menu bar, Dock icon, a floating window when the timer ends, and desktop widgets in three sizes.
+- **A nudge when you forget.** Working at the Mac for ten minutes with no timer running? A notification offers to start one, and to count the time so far.
 - **Phone notifications with answers.** Optional, through the free [ntfy](https://ntfy.sh) app: if you do not react on the Mac, the phone gets a notification with buttons, and the answer goes back to the Mac.
 - **Your data stays yours.** Plain JSON files on your Mac, optionally in your own iCloud Drive. No account, no tracking.
 

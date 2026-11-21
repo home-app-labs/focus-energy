@@ -63,6 +63,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         WidgetBridge.shared.start()
         PhonePush.shared.start()
+        StartReminder.shared.start()
 
         // Pick up changes synced from another Mac: every half minute and whenever the app comes forward.
         Timer.publish(every: 30, on: .main, in: .common).autoconnect().map { _ in }

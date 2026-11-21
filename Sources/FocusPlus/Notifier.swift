@@ -7,6 +7,7 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
 
     private let focusCategory = "FOCUS_DONE"
     private let breakCategory = "BREAK_DONE"
+    private let nudgeCategory = "START_NUDGE"
     private let extendPrefix = "EXTEND_"
 
     /// Notifications need a real app bundle; the bare binary from `swift run` has none.
@@ -34,7 +35,12 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         let breakDone = UNNotificationCategory(identifier: breakCategory, actions: [
             UNNotificationAction(identifier: "FOCUS", title: "Start focus", options: []),
         ], intentIdentifiers: [])
-        center.setNotificationCategories([focus, breakDone])
+        let nudge = UNNotificationCategory(identifier: nudgeCategory, actions: [
+            UNNotificationAction(identifier: "FOCUS", title: "Start \(settings.focusMinutes) min focus", options: []),
+            UNNotificationAction(identifier: "LOG_PAST", title: "Start, and count the time so far", options: []),
+            UNNotificationAction(identifier: "NOT_NOW", title: "Not now", options: []),
+        ], intentIdentifiers: [])
+        center.setNotificationCategories([focus, breakDone, nudge])
     }
 
     func announce(finished phase: TimerEngine.Phase, engine: TimerEngine) {
@@ -57,6 +63,19 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         }
         center.removeAllDeliveredNotifications()
         center.add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
+    }
+
+    /// "You are working without a timer."
+    func remindToStart(activeMinutes: Int, focusMinutes: Int) {
+        guard available else { return }
+        if AppSettings.shared.playSounds { NSSound(named: "Tink")?.play() }
+        registerCategories()
+        let content = UNMutableNotificationContent()
+        content.title = "Working without a timer?"
+        content.body = "You have been at it for \(Format.duration(minutes: activeMinutes)). Start a focus session so that it counts."
+        content.categoryIdentifier = nudgeCategory
+        content.userInfo = ["activeMinutes": activeMinutes]
+        center.add(UNNotificationRequest(identifier: "start-nudge", content: content, trigger: nil))
     }
 
     func clear() {
@@ -82,6 +101,16 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
                 if engine.phase == .focus { engine.startBreak() }
             } else if action == "FOCUS" {
                 if engine.phase != .focus { engine.startFocus() }
+            } else if action == "LOG_PAST" {
+                // Count the untimed minutes as a session of their own, then carry on with a timer.
+                let minutes = response.notification.request.content.userInfo["activeMinutes"] as? Int ?? 0
+                if engine.phase == .idle {
+                    if minutes > 0 { engine.logPastFocus(minutes: minutes) }
+                    engine.startFocus()
+                }
+            } else if action == UNNotificationDefaultActionIdentifier,
+                      response.notification.request.content.categoryIdentifier == self.nudgeCategory {
+                AppWindows.showMain()
             } else if action == UNNotificationDefaultActionIdentifier, engine.runState == .finished {
                 AppWindows.showChoice()
             }

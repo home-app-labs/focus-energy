@@ -111,6 +111,9 @@ final class AppSettings: ObservableObject {
     }
     @Published var dailyGoal: Int { didSet { d.set(dailyGoal, forKey: "dailyGoal") } }
     @Published var playSounds: Bool { didSet { d.set(playSounds, forKey: "playSounds") } }
+    /// Nudge to start a timer after this many minutes of activity without one.
+    @Published var remindToStart: Bool { didSet { d.set(remindToStart, forKey: "remindToStart") } }
+    @Published var remindAfterMinutes: Int { didSet { d.set(remindAfterMinutes, forKey: "remindAfterMinutes") } }
     @Published var showNotifications: Bool { didSet { d.set(showNotifications, forKey: "showNotifications") } }
     @Published var showCoinsInMenuBar: Bool { didSet { d.set(showCoinsInMenuBar, forKey: "showCoinsInMenuBar") } }
     /// Send timer notifications to the phone through ntfy.
@@ -132,6 +135,8 @@ final class AppSettings: ObservableObject {
             "dailyGoal": 360,
             "playSounds": true,
             "showNotifications": true,
+            "remindToStart": true,
+            "remindAfterMinutes": 10,
             "showCoinsInMenuBar": true,
             "popUpWhenFinished": true,
             "showTimerInDock": true,
@@ -147,6 +152,8 @@ final class AppSettings: ObservableObject {
         breakPresets = (savedPresets?.isEmpty == false ? savedPresets : nil) ?? BreakPreset.defaults
         playSounds = d.bool(forKey: "playSounds")
         showNotifications = d.bool(forKey: "showNotifications")
+        remindToStart = d.bool(forKey: "remindToStart")
+        remindAfterMinutes = d.integer(forKey: "remindAfterMinutes")
         showCoinsInMenuBar = d.bool(forKey: "showCoinsInMenuBar")
         popUpWhenFinished = d.bool(forKey: "popUpWhenFinished")
         showTimerInDock = d.bool(forKey: "showTimerInDock")
