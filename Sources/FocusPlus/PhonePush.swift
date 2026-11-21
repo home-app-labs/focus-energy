@@ -108,7 +108,9 @@ final class PhonePush: ObservableObject {
             self.announce(phase, engine: engine)
         }
         pending = work
-        let delay = Double(max(0, settings.pushDelayMinutes)) * 60
+        // Development aid: FOCUSPLUS_PUSH_DELAY_SECONDS shortens the wait so that it can be tested.
+        let override = ProcessInfo.processInfo.environment["FOCUSPLUS_PUSH_DELAY_SECONDS"].flatMap(Double.init)
+        let delay = override ?? Double(max(0, settings.pushDelayMinutes)) * 60
         if delay == 0 { work.perform() } else { DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work) }
     }
 

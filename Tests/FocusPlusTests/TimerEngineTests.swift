@@ -291,6 +291,37 @@ final class TimerEngineTests: XCTestCase {
         XCTAssertEqual(settings.focusMinutes, 30)
     }
 
+    /// The whole away-from-the-desk story, answered from the phone at each step.
+    func testPhoneStoryStepAwayAndComeBack() {
+        engine.startFocus(); advance(minutes: 30)
+        XCTAssertEqual(engine.runState, .finished)
+        let afterFocus = PhonePush.buttons(finished: .focus, settings: settings)
+
+        // "+10 min break": the session is logged and a ten minute break starts.
+        XCTAssertTrue(PhonePush.apply(afterFocus[1].command, to: engine).applied)
+        XCTAssertTrue(engine.phase.isBreak)
+        XCTAssertEqual(engine.runState, .running)
+        XCTAssertEqual(ledger.entries.map(\.minutes), [30])
+        advance(minutes: 10)
+        XCTAssertEqual(engine.runState, .finished, "the break is over and waits for an answer")
+
+        // "+10 min break" again: the same break carries on for ten more minutes.
+        let afterBreak = PhonePush.buttons(finished: engine.phase, settings: settings)
+        XCTAssertEqual(afterBreak.map(\.label), ["+30 min focus", "+10 min break", "Stop"])
+        let extended = PhonePush.apply(afterBreak[1].command, to: engine)
+        XCTAssertTrue(extended.applied)
+        XCTAssertTrue(extended.text.hasPrefix("Added 10 min. Ends at "))
+        XCTAssertTrue(engine.phase.isBreak)
+        XCTAssertEqual(engine.runState, .running)
+        XCTAssertEqual(Int(engine.remaining), 600)
+        advance(minutes: 10)
+
+        // "+30 min focus": back to work. The break is logged as one break of twenty minutes.
+        XCTAssertTrue(PhonePush.apply(afterBreak[0].command, to: engine).applied)
+        XCTAssertEqual(engine.phase, .focus)
+        XCTAssertEqual(ledger.breaks.map(\.minutes), [20])
+    }
+
     func testPhoneCommands() {
         XCTAssertEqual(PhonePush.Command("extend:5"), .extend(5))
         XCTAssertEqual(PhonePush.Command(" Break:60\n"), .rest(60))
