@@ -78,6 +78,15 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         center.add(UNNotificationRequest(identifier: "start-nudge", content: content, trigger: nil))
     }
 
+    /// A plain notice without buttons.
+    func note(title: String, body: String) {
+        guard available else { return }
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        center.add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
+    }
+
     func clear() {
         guard available else { return }
         center.removeAllDeliveredNotifications()

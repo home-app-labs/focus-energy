@@ -114,6 +114,15 @@ final class AppSettings: ObservableObject {
     /// Nudge to start a timer after this many minutes of activity without one.
     @Published var remindToStart: Bool { didSet { d.set(remindToStart, forKey: "remindToStart") } }
     @Published var remindAfterMinutes: Int { didSet { d.set(remindAfterMinutes, forKey: "remindAfterMinutes") } }
+    /// Look for a new version once a day.
+    @Published var autoCheckUpdates: Bool { didSet { d.set(autoCheckUpdates, forKey: "autoCheckUpdates") } }
+    /// Install a new version without asking, at a quiet moment.
+    @Published var autoInstallUpdates: Bool { didSet { d.set(autoInstallUpdates, forKey: "autoInstallUpdates") } }
+    /// Set just before the app replaces itself, so that the new copy can say what happened.
+    var updatedFromVersion: String? {
+        get { d.string(forKey: "updatedFromVersion") }
+        set { d.set(newValue, forKey: "updatedFromVersion") }
+    }
     @Published var showNotifications: Bool { didSet { d.set(showNotifications, forKey: "showNotifications") } }
     @Published var showCoinsInMenuBar: Bool { didSet { d.set(showCoinsInMenuBar, forKey: "showCoinsInMenuBar") } }
     /// Send timer notifications to the phone through ntfy.
@@ -135,6 +144,8 @@ final class AppSettings: ObservableObject {
             "dailyGoal": 360,
             "playSounds": true,
             "showNotifications": true,
+            "autoCheckUpdates": true,
+            "autoInstallUpdates": false,
             "remindToStart": true,
             "remindAfterMinutes": 10,
             "showCoinsInMenuBar": true,
@@ -152,6 +163,8 @@ final class AppSettings: ObservableObject {
         breakPresets = (savedPresets?.isEmpty == false ? savedPresets : nil) ?? BreakPreset.defaults
         playSounds = d.bool(forKey: "playSounds")
         showNotifications = d.bool(forKey: "showNotifications")
+        autoCheckUpdates = d.bool(forKey: "autoCheckUpdates")
+        autoInstallUpdates = d.bool(forKey: "autoInstallUpdates")
         remindToStart = d.bool(forKey: "remindToStart")
         remindAfterMinutes = d.integer(forKey: "remindAfterMinutes")
         showCoinsInMenuBar = d.bool(forKey: "showCoinsInMenuBar")

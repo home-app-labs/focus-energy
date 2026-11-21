@@ -4,6 +4,7 @@ import SwiftUI
 struct SettingsView: View {
     @ObservedObject var settings: AppSettings
     @ObservedObject private var ledger = Ledger.shared
+    @ObservedObject private var updater = Updater.shared
     @State private var storageError: String?
     @State private var extensionsText = ""
     @State private var tab = ProcessInfo.processInfo.environment["FOCUSPLUS_SETTINGS_TAB"].flatMap(Int.init) ?? 0
@@ -79,6 +80,18 @@ struct SettingsView: View {
 
     private var general: some View {
         Form {
+            Section("Updates") {
+                LabeledContent("Version \(updater.currentVersion)") {
+                    Button("Check for updates") { updater.check() }
+                        .disabled(!updater.canUpdate || updater.state == .checking)
+                }
+                updateStatus
+                Toggle("Check for a new version once a day", isOn: $settings.autoCheckUpdates)
+                Toggle("Install new versions automatically", isOn: $settings.autoInstallUpdates)
+                Text("Updates come from the app's GitHub releases and are installed only if they carry the Home App Labs signature. "
+                     + "Automatic installs wait until no timer is running and the app is in the background.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             Section("Focus buttons") {
                 TextField("Minutes", text: $extensionsText, prompt: Text("5, 10, 15, 30, 60"))
                     .onSubmit(applyExtensions)
@@ -208,6 +221,31 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+    }
+
+    @ViewBuilder private var updateStatus: some View {
+        switch updater.state {
+        case .idle:
+            EmptyView()
+        case .checking:
+            Text("Checking…").foregroundStyle(.secondary)
+        case .upToDate:
+            Label("You have the latest version.", systemImage: "checkmark.circle.fill").foregroundStyle(Palette.rest)
+        case .available(let update):
+            VStack(alignment: .leading, spacing: 8) {
+                Label("Version \(update.version) is available", systemImage: "arrow.down.circle.fill")
+                    .fontWeight(.semibold).foregroundStyle(Palette.start)
+                Text(update.notes).font(.callout).foregroundStyle(.secondary)
+                    .lineLimit(8).fixedSize(horizontal: false, vertical: true)
+                Button("Update now") { updater.install() }.buttonStyle(.borderedProminent).tint(Palette.start)
+            }
+        case .downloading(let update):
+            Text("Downloading version \(update.version)…").foregroundStyle(.secondary)
+        case .installing(let update):
+            Text("Installing version \(update.version). The app will reopen in a moment.").foregroundStyle(.secondary)
+        case .failed(let message):
+            Label(message, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Palette.focus)
+        }
     }
 
     private func applyExtensions() { applyExtensions(keepText: false) }

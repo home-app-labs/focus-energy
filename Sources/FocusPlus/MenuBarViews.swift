@@ -46,6 +46,7 @@ struct PopoverView: View {
 
     var body: some View {
         VStack(spacing: 14) {
+            UpdateBanner()
             ModePicker(settings: settings)
             timerCard
             controls
@@ -291,5 +292,29 @@ struct PopoverView: View {
         }
         .buttonStyle(.borderless)
         .font(.callout)
+    }
+}
+
+/// A slim line at the top of the panel when a new version is waiting.
+struct UpdateBanner: View {
+    @ObservedObject private var updater = Updater.shared
+
+    var body: some View {
+        if let update = updater.available {
+            HStack(spacing: 8) {
+                Image(systemName: "arrow.down.circle.fill").foregroundStyle(Palette.start)
+                if case .available = updater.state {
+                    Text("Version \(update.version) is available").font(.callout.weight(.medium))
+                    Spacer(minLength: 4)
+                    Button("Update") { updater.install() }.buttonStyle(.borderedProminent).tint(Palette.start).controlSize(.small)
+                } else {
+                    Text("Installing version \(update.version)…").font(.callout.weight(.medium))
+                    Spacer(minLength: 4)
+                    ProgressView().controlSize(.small)
+                }
+            }
+            .padding(.horizontal, 12).padding(.vertical, 8)
+            .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Palette.start.opacity(0.14)))
+        }
     }
 }

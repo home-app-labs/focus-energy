@@ -23,6 +23,7 @@ Most timers count your work and forget your rest. Focus Energy tracks both and s
 - **Everywhere you look.** Menu bar, Dock icon, a floating window when the timer ends, and desktop widgets in three sizes.
 - **A nudge when you forget.** Working at the Mac for ten minutes with no timer running? A notification offers to start one, and to count the time so far.
 - **Phone notifications with answers.** Optional, through the free [ntfy](https://ntfy.sh) app: if you do not react on the Mac, the phone gets a notification with buttons, and the answer goes back to the Mac.
+- **Updates itself.** Checks GitHub once a day for a new version and installs it with one click, or automatically if you like. Only updates carrying the Home App Labs signature are accepted.
 - **Your data stays yours.** Plain JSON files on your Mac, optionally in your own iCloud Drive. No account, no tracking.
 
 ## Install
@@ -98,11 +99,25 @@ Environment variables that make the app easier to test. Run the built binary dir
 
 The screenshots on the website are made with `FOCUSPLUS_DATA_DIR` pointing at sample data and `FOCUSPLUS_SNAPSHOT_DIR`.
 
+## Updates
+
+From version 1.1.0 the app updates itself.
+
+- Once a day, and on "Check for updates" in Settings, it reads `update.json` from the latest GitHub release.
+- If the version there is newer, it shows "Version x is available". With "Install new versions automatically" on, it installs at a quiet moment: no timer running and the app in the background.
+- It downloads the zip named in `update.json` and installs it only if all of this holds: the zip has a valid Ed25519 signature made with the Home App Labs key (the public half is in `Updater.swift`), the app inside has the same bundle identifier, its version is the announced one and newer than the running one, and its code signature is intact.
+- A small script then waits for the app to quit, moves the new app into place, restarts the widget service and reopens the app. If the move fails, the old app is put back.
+- The daily check can be switched off in Settings. It is the only network request the app makes without being asked.
+
+For testing: `FOCUSPLUS_UPDATE_URL` points the app at another `update.json` (a `file://` address works), `FOCUSPLUS_UPDATE_AUTOINSTALL=1` installs at once, `FOCUSPLUS_UPDATE_NO_RELAUNCH=1` skips reopening. Run a copy of the built app from a scratch folder, never the installed one.
+
 ## Releasing
 
 1. Put the new version number into `VERSION` and describe the changes in `release-notes/<version>.md`.
 2. Commit.
-3. Run `./scripts/release.sh --publish`. It builds a universal app, the installer and the zip, tags the commit and creates the GitHub release with the files attached.
+3. Run `./scripts/release.sh --publish`. It builds a universal app, the installer and the zip, signs the zip, writes `update.json`, tags the commit and creates the GitHub release with the files attached.
+
+Signing needs the private key in `~/.homeapplabs/update-signing.key` on the release Mac (`swift scripts/update-key.swift` prints the matching public key). The key is not in this repository. Without it no update can reach copies that are already installed, so keep a backup.
 
 The download links above always point at the latest release.
 

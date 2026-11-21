@@ -1,7 +1,8 @@
 #!/bin/bash
 # Builds the downloadable files for the version in VERSION:
 #   dist/Focus-Energy.pkg   an installer that puts the app into /Applications
-#   dist/Focus-Energy.zip   the bare app, for people who prefer to move it themselves
+#   dist/Focus-Energy.zip   the bare app, for people who prefer to move it themselves, and for self-updates
+#   dist/update.json        version, notes and the signature of the zip, read by installed copies
 # Pass --publish to also tag the commit and create the GitHub release with both files attached.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -54,6 +55,22 @@ productbuild --distribution "$WORK/distribution.xml" --package-path "$WORK" \
 
 ditto -c -k --keepParent "$APP" "$DIST/Focus-Energy.zip"
 
+# update.json is what installed copies read to find and verify a new version.
+# The zip is signed with the Home App Labs key in ~/.homeapplabs (see scripts/update-key.swift).
+SIGNATURE="$(swift scripts/update-key.swift sign "$DIST/Focus-Energy.zip")"
+python3 - "$VERSION" "$SIGNATURE" "$DIST" <<'PY'
+import json, os, sys
+version, signature, dist = sys.argv[1:4]
+manifest = {
+    "version": version,
+    "notes": open(f"release-notes/{version}.md").read().split("**Install:**")[0].strip(),
+    "url": f"https://github.com/home-app-labs/focus-energy/releases/download/v{version}/Focus-Energy.zip",
+    "signature": signature,
+    "size": os.path.getsize(f"{dist}/Focus-Energy.zip"),
+}
+json.dump(manifest, open(f"{dist}/update.json", "w"), indent=2)
+PY
+
 ( cd "$DIST" && shasum -a 256 Focus-Energy.pkg Focus-Energy.zip > SHA256SUMS.txt )
 # Leave one copy of the app on this Mac: the installed one. A second copy in build/ confuses Spotlight and the Dock.
 rm -rf "$APP"
@@ -65,7 +82,7 @@ for arg in "$@"; do
         if [ -n "$(git status --porcelain)" ]; then echo "Commit your changes first." >&2; exit 1; fi
         git tag "v$VERSION"
         git push origin HEAD "v$VERSION"
-        gh release create "v$VERSION" "$DIST/Focus-Energy.pkg" "$DIST/Focus-Energy.zip" "$DIST/SHA256SUMS.txt" \
+        gh release create "v$VERSION" "$DIST/Focus-Energy.pkg" "$DIST/Focus-Energy.zip" "$DIST/update.json" "$DIST/SHA256SUMS.txt" \
             --title "Focus Energy $VERSION" --notes-file "release-notes/$VERSION.md"
     fi
 done
