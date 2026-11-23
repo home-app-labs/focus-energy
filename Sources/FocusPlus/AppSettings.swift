@@ -29,17 +29,24 @@ struct BreakPreset: Codable, Identifiable, Equatable {
     ]
 }
 
-/// How hard the person wants to work. Each mode keeps its own limits, which can be edited.
+/// How long a day the person plans. Each mode keeps its own numbers, which can be edited.
+/// The raw values are the names from earlier versions, kept so that saved settings still load.
 enum WorkMode: String, CaseIterable, Identifiable, Codable {
-    case light, moderate, hardcore
+    case dayOff, light, moderate, hardcore
+
+    /// The modes that plan a working day and have numbers to edit.
+    static let working: [WorkMode] = [.light, .moderate, .hardcore]
+    /// A day off plans nothing: no goal to chase, no reminders. It ends by itself at midnight.
+    var isDayOff: Bool { self == .dayOff }
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .light: return "Light"
+        case .light: return "Chill"
         case .moderate: return "Moderate"
         case .hardcore: return "Hardcore"
+        case .dayOff: return "Day off"
         }
     }
 
@@ -48,39 +55,61 @@ enum WorkMode: String, CaseIterable, Identifiable, Codable {
         case .light: return "leaf.fill"
         case .moderate: return "dial.medium.fill"
         case .hardcore: return "flame.fill"
+        case .dayOff: return "sun.max.fill"
         }
     }
 
-    /// Factory values. Moderate follows the classic Pomodoro day: six hours of focus and two of rest.
+    /// Factory values: 25 minutes of focus and 5 of rest, the classic Pomodoro round.
+    /// Ten rounds fill five hours, fifteen fill a 7.5 hour working day, twenty fill ten hours.
     var defaults: ModeSettings {
         switch self {
-        case .light: return ModeSettings(focusGoal: 240, restGoal: 90, sessionMinutes: 25, breakMinutes: 5)
-        case .moderate: return ModeSettings(focusGoal: 360, restGoal: 120, sessionMinutes: 30, breakMinutes: 5)
-        case .hardcore: return ModeSettings(focusGoal: 480, restGoal: 120, sessionMinutes: 45, breakMinutes: 5)
+        case .light: return ModeSettings(sessions: 10, sessionMinutes: 25, breakMinutes: 5)
+        case .moderate, .dayOff: return ModeSettings(sessions: 15, sessionMinutes: 25, breakMinutes: 5)
+        case .hardcore: return ModeSettings(sessions: 20, sessionMinutes: 25, breakMinutes: 5)
         }
     }
 }
 
-/// The settings that belong to one mode.
+/// The settings that belong to one mode: how many sessions make the day, and the rhythm of focus and rest.
+/// There is no separate rest target. The rest that is due follows from the rhythm.
 struct ModeSettings: Codable, Equatable {
-    /// Focus limit for the day, in minutes.
-    var focusGoal: Int
-    /// Rest planned for the day, in minutes.
-    var restGoal: Int
+    /// Sessions planned for the day.
+    var sessions: Int
     /// Length of a session started with the main button.
     var sessionMinutes: Int
     /// The break suggested when a session ends.
     var breakMinutes: Int
 
-    var summary: String {
-        "\(Format.short(minutes: focusGoal)) focus · \(Format.short(minutes: restGoal)) rest"
+    init(sessions: Int, sessionMinutes: Int, breakMinutes: Int) {
+        self.sessions = sessions
+        self.sessionMinutes = sessionMinutes
+        self.breakMinutes = breakMinutes
     }
 
-    /// Rest the classic Pomodoro technique would give for this much focus:
-    /// 25 minutes on, 5 off, and a 15 to 30 minute break after every four rounds.
-    var pomodoroRest: ClosedRange<Int> {
-        let cycles = Double(focusGoal) / 100
-        return Int((cycles * 30).rounded())...Int((cycles * 45).rounded())
+    private enum LegacyKeys: String, CodingKey { case focusGoal }
+
+    /// Settings saved before 1.2 held a focus goal in minutes: it becomes a number of sessions.
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        sessionMinutes = max(1, try values.decode(Int.self, forKey: .sessionMinutes))
+        breakMinutes = try values.decode(Int.self, forKey: .breakMinutes)
+        if let saved = try values.decodeIfPresent(Int.self, forKey: .sessions) {
+            sessions = saved
+        } else {
+            let goal = try decoder.container(keyedBy: LegacyKeys.self).decode(Int.self, forKey: .focusGoal)
+            sessions = max(1, Int((Double(goal) / Double(sessionMinutes)).rounded()))
+        }
+    }
+
+    /// Focus planned for the day, in minutes.
+    var focusGoal: Int { sessions * sessionMinutes }
+    /// Rest that comes with that focus when every session is followed by its break.
+    var restGoal: Int { sessions * breakMinutes }
+    /// The length of the day: focus and short breaks together. Lunch comes on top.
+    var dayMinutes: Int { focusGoal + restGoal }
+
+    var summary: String {
+        "\(sessions) sessions · \(sessionMinutes) / \(breakMinutes) min"
     }
 }
 
@@ -96,11 +125,37 @@ final class AppSettings: ObservableObject {
     @Published var longBreakMinutes: Int { didSet { d.set(longBreakMinutes, forKey: "longBreakMinutes") } }
     @Published var longBreakEvery: Int { didSet { d.set(longBreakEvery, forKey: "longBreakEvery") } }
     @Published var extensionOptions: [Int] { didSet { d.set(extensionOptions, forKey: "extensionOptions") } }
-    /// Rest planned for the day in the current mode, in minutes.
+    /// Rest that goes with a full day in the current mode, in minutes. Follows from the rhythm.
     @Published var dailyRest: Int = 120
     /// The mode in use. Switching it loads that mode's limits and session lengths.
     @Published var currentMode: WorkMode = .moderate {
-        didSet { d.set(currentMode.rawValue, forKey: "currentMode"); applyMode() }
+        didSet {
+            d.set(currentMode.rawValue, forKey: "currentMode")
+            if currentMode.isDayOff {
+                if !oldValue.isDayOff { modeBeforeDayOff = oldValue }
+                if dayOffDate == nil { dayOffDate = Date() }
+            } else {
+                dayOffDate = nil
+            }
+            applyMode()
+        }
+    }
+    /// The working mode to go back to when the day off is over. Its numbers stay in use meanwhile,
+    /// so that a timer started on a day off still has a length and the statistics keep their scale.
+    private(set) var modeBeforeDayOff: WorkMode {
+        get { d.string(forKey: "modeBeforeDayOff").flatMap(WorkMode.init(rawValue:)).flatMap { $0.isDayOff ? nil : $0 } ?? .moderate }
+        set { d.set(newValue.rawValue, forKey: "modeBeforeDayOff") }
+    }
+    /// The day that was taken off.
+    private(set) var dayOffDate: Date? {
+        get { d.object(forKey: "dayOffDate") as? Date }
+        set { d.set(newValue, forKey: "dayOffDate") }
+    }
+
+    /// Returns to the working mode once the day off is in the past.
+    func endDayOffIfOver(now: Date = Date()) {
+        guard currentMode.isDayOff, let day = dayOffDate, !Calendar.current.isDate(day, inSameDayAs: now) else { return }
+        currentMode = modeBeforeDayOff
     }
     /// Every mode's own settings, keyed by the mode's raw value.
     @Published var modes: [String: ModeSettings] = [:] {
@@ -179,6 +234,7 @@ final class AppSettings: ObservableObject {
         modes = d.data(forKey: "modes").flatMap { try? JSONDecoder().decode([String: ModeSettings].self, from: $0) } ?? [:]
         currentMode = d.string(forKey: "currentMode").flatMap(WorkMode.init(rawValue:)) ?? .moderate
         applyMode()
+        endDayOffIfOver()
         // Topics from earlier versions mixed letters and digits: replace them with the readable kind.
         if overrideTopic == nil, !pushTopic.isEmpty,
            pushTopic.range(of: "^focus-[a-z]{6}-[a-z]{6}$", options: .regularExpression) == nil {
@@ -216,13 +272,21 @@ final class AppSettings: ObservableObject {
 
     // MARK: Modes
 
-    func settings(for mode: WorkMode) -> ModeSettings { modes[mode.rawValue] ?? mode.defaults }
+    func settings(for mode: WorkMode) -> ModeSettings {
+        let source = mode.isDayOff ? modeBeforeDayOff : mode
+        return modes[source.rawValue] ?? source.defaults
+    }
+
+    /// One line about a mode for the mode menu.
+    func summary(for mode: WorkMode) -> String {
+        mode.isDayOff ? "No goal, no reminders, until tomorrow" : settings(for: mode).summary
+    }
 
     func update(_ mode: WorkMode, _ change: (inout ModeSettings) -> Void) {
+        guard !mode.isDayOff else { return }
         var value = settings(for: mode)
         change(&value)
-        value.focusGoal = min(960, max(30, value.focusGoal))
-        value.restGoal = min(480, max(0, value.restGoal))
+        value.sessions = min(40, max(1, value.sessions))
         value.sessionMinutes = min(240, max(5, value.sessionMinutes))
         value.breakMinutes = min(120, max(1, value.breakMinutes))
         modes[mode.rawValue] = value

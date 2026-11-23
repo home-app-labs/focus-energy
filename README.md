@@ -17,9 +17,11 @@ Most timers count your work and forget your rest. Focus Energy tracks both and s
 ## What it does
 
 - **One session, not five.** When the timer ends, add 5, 15 or 60 minutes, or take a break. A 30 minute session extended by 15 stays one 45 minute session in the log.
-- **Breaks count.** Coffee, a walk, lunch: breaks have their own buttons and a daily target.
+- **Breaks count.** Coffee, a walk, lunch: breaks have their own buttons. After an hour without one the app suggests a coffee, and after half the day a long break.
 - **Energy.** A bar that drops when you push through and recovers when you rest, with a verdict for each day of the week.
-- **Three modes.** Light, Moderate and Hardcore, each with its own focus and rest targets. Moderate is 6 hours of focus and 2 hours of rest.
+- **Modes count the day in sessions.** Chill is 10 sessions, Moderate 15, Hardcore 20, each 25 minutes of focus and 5 of rest. Moderate fills a 7.5 hour working day; lunch comes on top. Every number can be changed. There is no rest target: energy follows the balance of focus and breaks.
+- **Time at the Mac.** The app counts how long there was keyboard or mouse input each day and shows it next to the focus you logged: one line in the timer window, details in Statistics. It sees only that there was input, never what or where, and the numbers stay on this Mac.
+- **Day off.** A fourth mode with no goal and no reminders. It ends by itself at midnight.
 - **Everywhere you look.** Menu bar, Dock icon, a floating window when the timer ends, and desktop widgets in three sizes.
 - **A nudge when you forget.** Working at the Mac for ten minutes with no timer running? A notification offers to start one, and to count the time so far.
 - **Phone notifications with answers.** Optional, through the free [ntfy](https://ntfy.sh) app: if you do not react on the Mac, the phone gets a notification with buttons, and the answer goes back to the Mac.
@@ -68,7 +70,7 @@ Optional and off by default. They use the free [ntfy](https://ntfy.sh) app, so n
 3. In ntfy, subscribe to the topic shown in the window. Copy it on the Mac and paste it on the phone.
 4. Click **Send a test** and press **It works** in the notification.
 
-When a timer ends and you do not react on the Mac within the delay you set, the phone gets one notification with three buttons: more focus, more break, or stop. The answer comes back to the Mac.
+When a timer ends and you do not react on the Mac within the delay you set, the phone gets one notification. The app takes it that you have walked away, so the three buttons all add rest: +5, +15 or +30 minutes from now. The time you were already away counts as rest too. Focus is started at the Mac.
 Only short texts leave the Mac. The topic name works like a password, so keep it private.
 
 ## Where your data lives
@@ -89,7 +91,7 @@ Environment variables that make the app easier to test. Run the built binary dir
 | --- | --- |
 | `FOCUSPLUS_DATA_DIR=/path` | Keep the log in another folder, so tests do not touch real data |
 | `FOCUSPLUS_DEMO_SECONDS=5` | Start a focus session that many seconds long |
-| `FOCUSPLUS_DEMO_ACTION=extend15` or `break` | Apply that action two seconds after launch |
+| `FOCUSPLUS_DEMO_ACTION=extend15`, `break`, `note` or `dayoff` | Apply that action two seconds after launch. `note` sends a test notification, `dayoff` takes a day off for three seconds |
 | `FOCUSPLUS_SHOW=panel,stats,log,settings,widgets,phone` | Open these windows at launch |
 | `FOCUSPLUS_SHOW_LATER=widgets` | The same list, opened four seconds after launch, to see the state after a short demo timer has ended |
 | `FOCUSPLUS_SETTINGS_TAB=0`, `1` or `2` | Which settings tab to show first |

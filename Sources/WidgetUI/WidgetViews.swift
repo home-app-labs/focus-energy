@@ -13,6 +13,16 @@ enum WidgetPalette {
     static let coin = Color(red: 1.00, green: 0.72, blue: 0.20)
     static let focus = Color(red: 0.47, green: 0.40, blue: 1.00)
     static let rest = Color(red: 0.18, green: 0.83, blue: 0.68)
+    /// Energy by level, as in the app: green from half up, orange from a quarter, red below.
+    static func energy(_ level: Double) -> Color {
+        switch level {
+        case 0.50...: return rest
+        case 0.25...: return Color(red: 0.96, green: 0.58, blue: 0.16)
+        default: return Color(red: 1.00, green: 0.36, blue: 0.40)
+        }
+    }
+    /// The idle ring and its play mark, as on the Start button in the app.
+    static let start = Color(red: 0.25, green: 0.48, blue: 1.00)
     static let background = Color(red: 0.11, green: 0.11, blue: 0.12)
 }
 
@@ -36,7 +46,7 @@ public struct FocusWidgetView: View {
         switch snapshot.phase {
         case .focus: return WidgetPalette.focus
         case .rest: return WidgetPalette.rest
-        case .idle: return WidgetPalette.coin
+        case .idle: return WidgetPalette.start
         }
     }
 
@@ -74,7 +84,7 @@ public struct FocusWidgetView: View {
         }
     }
 
-    /// The big round status on the left (percentage or countdown, with the mood face), details on the right.
+    /// The big round status on the left (percentage or countdown under the phase mark), details on the right.
     private var medium: some View {
         HStack(spacing: 16) {
             ring(size: 118)
@@ -138,18 +148,14 @@ public struct FocusWidgetView: View {
                 .stroke(tint, style: StrokeStyle(lineWidth: line, lineCap: .round))
                 .rotationEffect(.degrees(-90))
             VStack(spacing: 1) {
-                Text(point.moodEmoji).font(.system(size: size * 0.20))
+                // Same mark as in the app's ring: bolt in focus, cup on a break, play when nothing runs.
+                Image(systemName: symbol).font(.system(size: size * 0.12, weight: .semibold)).foregroundStyle(tint)
                 centerText
                     .font(.system(size: size * 0.24, weight: .bold, design: .rounded))
                     .monospacedDigit().lineLimit(1).minimumScaleFactor(0.6)
                     .multilineTextAlignment(.center)
-                HStack(spacing: 3) {
-                    if snapshot.runState != .idle {
-                        Image(systemName: symbol).font(.system(size: size * 0.085, weight: .semibold)).foregroundStyle(tint)
-                    }
-                    Text(caption).font(.system(size: size * 0.10, weight: .medium)).foregroundStyle(.white.opacity(0.65))
-                        .lineLimit(1).minimumScaleFactor(0.6)
-                }
+                Text(caption).font(.system(size: size * 0.10, weight: .medium)).foregroundStyle(.white.opacity(0.65))
+                    .lineLimit(1).minimumScaleFactor(0.6)
                 // This line sits low in the circle, where there is less width than across the middle.
                 .frame(maxWidth: size * 0.60)
             }
@@ -219,10 +225,10 @@ public struct FocusWidgetView: View {
                         .foregroundStyle(.white.opacity(0.8))
                 }
             }
-            bar(value: min(1, goalShare), color: point.coins > snapshot.goal ? WidgetPalette.rest : WidgetPalette.coin)
+            bar(value: min(1, goalShare), color: WidgetPalette.focus)
             Text(point.coins > snapshot.goal
                     ? "+\(duration(point.coins - snapshot.goal)) over the \(duration(snapshot.goal)) limit"
-                    : "of \(duration(snapshot.goal)) today")
+                    : "\(point.coins / max(snapshot.defaultFocusMinutes, 1)) of \(max(1, snapshot.goal / max(snapshot.defaultFocusMinutes, 1))) sessions today")
                 .font(.system(size: 10)).foregroundStyle(.white.opacity(0.6)).lineLimit(1)
         }
     }
@@ -230,8 +236,11 @@ public struct FocusWidgetView: View {
     /// Energy and rest.
     private var moodBlock: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(point.moodTitle).font(.system(size: 13, weight: .semibold)).lineLimit(1)
-            bar(value: point.energy, color: WidgetPalette.rest)
+            HStack(spacing: 4) {
+                Text(point.moodEmoji).font(.system(size: 12))
+                Text(point.moodTitle).font(.system(size: 13, weight: .semibold)).lineLimit(1)
+            }
+            bar(value: point.energy, color: WidgetPalette.energy(point.energy))
             HStack(spacing: 3) {
                 Image(systemName: "cup.and.saucer.fill").foregroundStyle(WidgetPalette.rest)
                 Text("rest \(short(point.breakMinutes)) of \(short(point.recommendedRest))")

@@ -36,17 +36,25 @@ struct ChoiceView: View {
 
     private var focusDone: some View {
         let minutes = engine.session?.plannedMinutes ?? settings.focusMinutes
+        let hint = engine.wellbeing.breakHint
+        let breaks = BreakButtons(options: settings.breakOptions, highlighted: engine.suggestedBreakMinutes, prominent: true) {
+            engine.startBreak(minutes: $0)
+        }
         return VStack(spacing: 22) {
             header(symbol: "checkmark.circle.fill", color: Palette.ringFocus, title: "Focus session complete",
                    subtitle: "\(Format.duration(minutes: minutes)) of focus done")
 
-            group("How much longer do you want to work?") {
-                ExtendButtons(options: settings.extensionOptions, prominent: true) { engine.extend(minutes: $0) }
-            }
-            group("Or take a break") {
-                BreakButtons(options: settings.breakOptions, highlighted: engine.nextBreakMinutes, prominent: true) {
-                    engine.startBreak(minutes: $0)
+            // Once a break is due it comes first and says why; working on is still one click away.
+            if let hint {
+                group(hint) { breaks }
+                group("Or keep working") {
+                    ExtendButtons(options: settings.extensionOptions) { engine.extend(minutes: $0) }
                 }
+            } else {
+                group("How much longer do you want to work?") {
+                    ExtendButtons(options: settings.extensionOptions, prominent: true) { engine.extend(minutes: $0) }
+                }
+                group("Or take a break") { breaks }
             }
 
             HStack(spacing: 8) {

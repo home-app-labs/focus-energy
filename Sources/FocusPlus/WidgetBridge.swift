@@ -22,6 +22,7 @@ final class WidgetBridge {
             ledger.$usesICloud.map { _ in }.eraseToAnyPublisher(),
             settings.$dailyGoal.map { _ in }.eraseToAnyPublisher(),
             settings.$dailyRest.map { _ in }.eraseToAnyPublisher(),
+            settings.$currentMode.map { _ in }.eraseToAnyPublisher(),
             settings.$focusMinutes.map { _ in }.eraseToAnyPublisher(),
         ]
         Publishers.MergeMany(triggers)
@@ -57,13 +58,15 @@ final class WidgetBridge {
         let inBreak = engine.phase.isBreak
 
         func point(at date: Date, extra: Int) -> WidgetSnapshot.Point {
-            let w = Wellbeing(focusMinutes: base.focusMinutes + (inFocus ? extra : 0),
+            var w = Wellbeing(focusMinutes: base.focusMinutes + (inFocus ? extra : 0),
                               breakMinutes: base.breakMinutes + (inBreak ? extra : 0),
                               goal: base.goal, stretch: base.stretch + (inFocus ? extra : 0),
-                              restGoal: base.restGoal)
+                              restGoal: base.restGoal, sessionMinutes: base.sessionMinutes,
+                              longestBreak: base.longestBreak + (inBreak ? extra : 0))
+            w.dayOff = base.dayOff
             return .init(date: date, coins: w.focusMinutes, breakMinutes: w.breakMinutes,
-                         recommendedRest: w.restGoal, energy: w.energy, moodEmoji: w.mood.emoji,
-                         moodTitle: w.mood.title, advice: w.advice)
+                         recommendedRest: w.recommendedRest, energy: w.energy, moodEmoji: w.mood.emoji,
+                         moodTitle: w.mood.title, advice: "\(w.adviceIcon) \(w.advice)")
         }
 
         var points = [point(at: now, extra: 0)]

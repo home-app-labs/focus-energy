@@ -227,6 +227,7 @@ final class Updater: ObservableObject {
 
         settings.updatedFromVersion = currentVersion
         TimerEngine.shared.prepareForQuit()
+        ActivityLog.shared.save()
         NSApp.terminate(nil)
     }
 

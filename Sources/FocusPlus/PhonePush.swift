@@ -3,8 +3,9 @@ import Combine
 
 /// Push notifications to the phone through ntfy (https://ntfy.sh), with buttons that answer back.
 ///
-/// When a timer ends the Mac publishes a message to a private topic; the ntfy app on the phone shows it.
-/// Each button posts a short command ("extend:5", "break:60") to a second, reply topic,
+/// The phone is told only when a timer ended and nobody reacted on the Mac: the person has walked away.
+/// So the phone offers one thing, more rest. Focus is started at the Mac.
+/// Each button posts a short command ("away:15") to a second, reply topic,
 /// which this Mac listens to and applies to the timer.
 /// The topic names are random and act as the password: whoever knows them can read and send.
 final class PhonePush: ObservableObject {
@@ -20,9 +21,10 @@ final class PhonePush: ObservableObject {
     static let ping = "ping"
 
     enum Command: Equatable {
-        case extend(Int), rest(Int), focus(Int), complete, stop
+        case extend(Int), rest(Int), focus(Int), away(Int), complete, stop
 
-        /// Parses "extend:15", "break:60", "focus:30", "complete", "stop".
+        /// Parses "away:15", and the older "extend:15", "break:60", "focus:30", "complete", "stop",
+        /// which notifications sent before an update may still carry.
         init?(_ text: String) {
             let parts = text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased().split(separator: ":")
             guard let name = parts.first else { return nil }
@@ -31,6 +33,7 @@ final class PhonePush: ObservableObject {
             case ("extend", let m?) where (1...600).contains(m): self = .extend(m)
             case ("break", let m?) where (1...600).contains(m): self = .rest(m)
             case ("focus", let m?) where (1...600).contains(m): self = .focus(m)
+            case ("away", let m?) where (1...600).contains(m): self = .away(m)
             case ("complete", _): self = .complete
             case ("stop", _): self = .stop
             default: return nil
@@ -42,6 +45,7 @@ final class PhonePush: ObservableObject {
             case .extend(let m): return "extend:\(m)"
             case .rest(let m): return "break:\(m)"
             case .focus(let m): return "focus:\(m)"
+            case .away(let m): return "away:\(m)"
             case .complete: return "complete"
             case .stop: return "stop"
             }
@@ -76,22 +80,13 @@ final class PhonePush: ObservableObject {
 
     // MARK: Buttons
 
-    /// The three buttons of the one notification, the most ntfy allows:
-    /// more focus, more rest, or stop. Additions read as "+N min".
-    static func buttons(finished phase: TimerEngine.Phase, settings: AppSettings) -> [Button] {
-        func nearest(_ options: [Int], to wanted: Int) -> Int {
-            options.min { abs($0 - wanted) < abs($1 - wanted) } ?? wanted
-        }
-        let rest = nearest(settings.breakOptions, to: 10)
-        if phase == .focus {
-            let more = nearest(settings.extensionOptions, to: 15)
-            return [Button(label: "+\(more) min focus", command: .extend(more)),
-                    Button(label: "+\(rest) min break", command: .rest(rest)),
-                    Button(label: "Stop", command: .stop)]
-        }
-        return [Button(label: "+\(settings.focusMinutes) min focus", command: .focus(settings.focusMinutes)),
-                Button(label: "+\(rest) min break", command: .extend(rest)),
-                Button(label: "Stop", command: .stop)]
+    /// Minutes of rest the phone can add.
+    static let awayOptions = [5, 15, 30]
+
+    /// The three buttons of the one notification, the most ntfy allows. All of them add rest:
+    /// a short pause, a coffee, or a long break such as lunch.
+    static func buttons() -> [Button] {
+        awayOptions.map { Button(label: "+\($0) min", command: .away($0)) }
     }
 
     // MARK: Sending
@@ -101,7 +96,8 @@ final class PhonePush: ObservableObject {
     /// Tells the phone that a timer ended, unless the person reacts on the Mac within the delay from the settings.
     func timerFinished(_ phase: TimerEngine.Phase, engine: TimerEngine) {
         pending?.cancel()
-        guard settings.pushEnabled else { return }
+        // On a day off the phone is left alone.
+        guard settings.pushEnabled, !settings.currentMode.isDayOff else { return }
         let work = DispatchWorkItem { [weak self, weak engine] in
             // Answered on the Mac in the meantime: the prompt is gone and the phone stays quiet.
             guard let self, let engine, engine.runState == .finished, engine.phase == phase else { return }
@@ -116,13 +112,12 @@ final class PhonePush: ObservableObject {
 
     private func announce(_ phase: TimerEngine.Phase, engine: TimerEngine) {
         let focus = phase == .focus
-        let minutes = engine.session?.plannedMinutes ?? settings.focusMinutes
-        send(title: focus ? "Focus session complete" : "\(engine.breakName) is over",
+        send(title: focus ? "Focus is done" : "\(engine.breakName) is over",
              message: focus
-                ? "\(Format.duration(minutes: minutes)) done. Today \(Format.short(minutes: engine.todayCoins)) of \(Format.short(minutes: settings.dailyGoal)). Extend or rest?"
-                : "Ready for the next stretch of focus?",
+                ? "Away from your Mac? Add a break. Today \(Format.short(minutes: engine.todayCoins)) of \(Format.short(minutes: settings.dailyGoal)) focus."
+                : "Back to your Mac, or take a little more.",
              tags: [focus ? "white_check_mark" : "coffee"], priority: 4,
-             buttons: Self.buttons(finished: phase, settings: settings))
+             buttons: Self.buttons())
     }
 
     func sendTest() {
@@ -232,6 +227,9 @@ final class PhonePush: ObservableObject {
         case .rest(let minutes):
             engine.startBreak(minutes: minutes)
             return (true, "\(engine.breakName), \(minutes) min.\(ending())")
+        case .away(let minutes):
+            engine.restWhileAway(minutes: minutes)
+            return (true, "\(engine.breakName), \(minutes) more min.\(ending())")
         case .focus(let minutes):
             engine.startFocus(minutes: minutes)
             return (true, "Focus, \(minutes) min.\(ending())")

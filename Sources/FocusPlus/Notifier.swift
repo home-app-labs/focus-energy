@@ -54,7 +54,8 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         if phase == .focus {
             let minutes = engine.session?.plannedMinutes ?? settings.focusMinutes
             content.title = "Focus session complete"
-            content.body = "\(Format.duration(minutes: minutes)) done. Today: \(Format.duration(minutes: engine.todayCoins)) of focus. Extend, or take a break?"
+            let hint = engine.wellbeing.breakHint
+            content.body = hint ?? "\(Format.duration(minutes: minutes)) done. Today: \(Format.duration(minutes: engine.todayCoins)) of focus. Extend, or take a break?"
             content.categoryIdentifier = focusCategory
         } else {
             content.title = "Break is over"
@@ -84,7 +85,16 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
-        center.add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
+        center.add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)) { error in
+            if let error { NSLog("FocusPlus: notification not shown: \(error.localizedDescription)") }
+        }
+        center.getNotificationSettings { settings in
+            if settings.authorizationStatus != .authorized || settings.alertSetting != .enabled {
+                NSLog("FocusPlus: notifications are off for this app (status \(settings.authorizationStatus.rawValue), alerts \(settings.alertSetting.rawValue), style \(settings.alertStyle.rawValue))")
+            } else {
+                NSLog("FocusPlus: notification sent (style \(settings.alertStyle.rawValue))")
+            }
+        }
     }
 
     func clear() {

@@ -31,7 +31,7 @@ struct MenuBarLabel: View {
         case .finished: return engine.phase == .focus ? "Done" : "Break over"
         case .idle:
             // Ready: how much of today's goal is done, e.g. "21%".
-            guard settings.showCoinsInMenuBar else { return nil }
+            guard settings.showCoinsInMenuBar, !settings.currentMode.isDayOff else { return nil }
             let percent = Double(engine.todayCoins) / Double(max(settings.dailyGoal, 1)) * 100
             return "\(Int(percent.rounded()))%"
         }
@@ -73,6 +73,8 @@ struct PopoverView: View {
             }
             Divider()
             DayRatingRow(ledger: ledger, day: engine.today)
+            Divider()
+            ActivityLine(activity: .shared, engine: engine)
             Divider()
             footer
         }
@@ -136,11 +138,9 @@ struct PopoverView: View {
                 timerRing(size: 150)
                 VStack(alignment: .leading, spacing: 14) {
                     statBar(symbol: "bolt.fill", value: Format.duration(minutes: wellbeing.focusMinutes),
-                            detail: "focus of \(Format.short(minutes: max(wellbeing.goal, 1))) today",
+                            detail: "\(wellbeing.sessionsDone) of \(wellbeing.sessionsGoal) sessions today",
                             share: wellbeing.focusShare, color: Palette.ringFocus)
-                    statBar(symbol: "cup.and.saucer.fill", value: Format.duration(minutes: wellbeing.breakMinutes),
-                            detail: "rest of \(Format.short(minutes: wellbeing.restGoal))",
-                            share: wellbeing.restShareOfDay, color: Palette.ringRest)
+                    energyBlock(wellbeing)
                 }
                 .frame(maxWidth: .infinity)
             }
@@ -224,25 +224,36 @@ struct PopoverView: View {
         .frame(height: height)
     }
 
-    private func energyRow(_ wellbeing: Wellbeing) -> some View {
-        let mood = wellbeing.mood
-        return VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 8) {
-                Text(mood.emoji).font(.system(size: 22))
-                Text("Energy \(Int((wellbeing.energy * 100).rounded()))%")
-                    .font(.system(size: 15, weight: .bold, design: .rounded)).monospacedDigit()
-                if mood != .idle {
-                    Text(mood.title).font(.callout).foregroundStyle(.white.opacity(0.6))
-                }
-                Spacer(minLength: 0)
+    /// Energy in place of a separate break bar: the mood face, the level, and the rest taken against
+    /// what the finished sessions call for. Same block as in the desktop widget.
+    private func energyBlock(_ wellbeing: Wellbeing) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(spacing: 6) {
+                Text(wellbeing.mood.emoji).font(.system(size: 15))
+                Text("\(Int((wellbeing.energy * 100).rounded()))%")
+                    .font(.system(size: 19, weight: .bold, design: .rounded)).monospacedDigit()
+                Text(wellbeing.mood.title).font(.caption).foregroundStyle(.white.opacity(0.6))
+                    .lineLimit(1).minimumScaleFactor(0.7)
             }
-            bar(share: wellbeing.energy, color: Palette.ringEnergy)
-            Text(wellbeing.advice).font(.caption)
-                .foregroundStyle(mood == .overworked ? Palette.focus : Color.white.opacity(0.6))
-                .fixedSize(horizontal: false, vertical: true)
+            bar(share: wellbeing.energy, color: wellbeing.energyColor)
+            HStack(spacing: 4) {
+                Image(systemName: "cup.and.saucer.fill").foregroundStyle(Palette.ringRest)
+                Text(wellbeing.dayOff || wellbeing.sessionsDone == 0
+                     ? "rest \(Format.short(minutes: wellbeing.breakMinutes))"
+                     : "rest \(Format.short(minutes: wellbeing.breakMinutes)) of \(Format.short(minutes: wellbeing.recommendedRest))")
+            }
+            .font(.caption).foregroundStyle(.white.opacity(0.6)).lineLimit(1)
         }
-        .padding(.top, 12)
-        .overlay(alignment: .top) { Rectangle().fill(.white.opacity(0.1)).frame(height: 1) }
+    }
+
+    /// The status line under the ring. The widget shows the very same text.
+    private func energyRow(_ wellbeing: Wellbeing) -> some View {
+        Text("\(wellbeing.adviceIcon) \(wellbeing.advice)").font(.caption)
+            .foregroundStyle(wellbeing.mood == .overworked ? Palette.focus : Color.white.opacity(0.7))
+            .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity)
+            .padding(.top, 12)
+            .overlay(alignment: .top) { Rectangle().fill(.white.opacity(0.1)).frame(height: 1) }
     }
 
     @ViewBuilder private var controls: some View {

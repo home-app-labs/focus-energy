@@ -50,6 +50,7 @@ struct ModePicker: View {
         case .light: return Palette.ringRest
         case .moderate: return Palette.ringFocus
         case .hardcore: return Palette.focus
+        case .dayOff: return Palette.ringEnergy
         }
     }
 
@@ -60,7 +61,7 @@ struct ModePicker: View {
             HStack(spacing: 8) {
                 Image(systemName: mode.symbol).foregroundStyle(tint)
                 Text(mode.title).fontWeight(.semibold)
-                Text(settings.settings(for: mode).summary).foregroundStyle(.secondary)
+                Text(settings.summary(for: mode)).foregroundStyle(.secondary)
                 Image(systemName: "chevron.down").font(.caption2.weight(.bold)).foregroundStyle(.secondary)
             }
             .font(.callout)
@@ -70,7 +71,7 @@ struct ModePicker: View {
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
-        .help("Switch between Light, Moderate and Hardcore")
+        .help("Switch between Day off, Chill, Moderate and Hardcore")
         .popover(isPresented: $open, arrowEdge: .bottom) {
             VStack(alignment: .leading, spacing: 4) {
                 ForEach(WorkMode.allCases) { option in
@@ -82,7 +83,7 @@ struct ModePicker: View {
                             Image(systemName: option.symbol).foregroundStyle(Self.tint(option)).frame(width: 20)
                             VStack(alignment: .leading, spacing: 1) {
                                 Text(option.title).fontWeight(.semibold)
-                                Text(settings.settings(for: option).summary).font(.caption).foregroundStyle(.secondary)
+                                Text(settings.summary(for: option)).font(.caption).foregroundStyle(.secondary)
                             }
                             Spacer(minLength: 16)
                             Image(systemName: "checkmark").opacity(option == mode ? 1 : 0)
@@ -439,23 +440,23 @@ struct EnergyCard: View {
         let size: CGFloat = large ? 112 : 92
         VStack(spacing: large ? 12 : 9) {
             HStack(alignment: .top, spacing: 0) {
-                column("Focus", detail: "of \(Format.short(minutes: max(wellbeing.goal, 1)))", color: Palette.ringFocus) {
+                column("Focus", detail: "\(wellbeing.sessionsDone) of \(wellbeing.sessionsGoal) sessions", color: Palette.ringFocus) {
                     Gauge(share: wellbeing.focusShare, color: Palette.ringFocus, size: size) {
                         value(Format.short(minutes: wellbeing.focusMinutes), size: size)
                     }
                 }
-                column("Rest", detail: "of \(Format.short(minutes: wellbeing.restGoal))", color: Palette.ringRest) {
-                    Gauge(share: wellbeing.restShareOfDay, color: Palette.ringRest, size: size) {
+                column("Rest", detail: "of \(Format.short(minutes: wellbeing.recommendedRest)) for \(wellbeing.sessionsDone)", color: Palette.ringRest) {
+                    Gauge(share: wellbeing.restShare, color: Palette.ringRest, size: size) {
                         value(Format.short(minutes: wellbeing.breakMinutes), size: size)
                     }
                 }
-                column("Energy", detail: "\(Int((wellbeing.energy * 100).rounded()))%", color: Palette.ringEnergy) {
-                    Gauge(share: wellbeing.energy, color: Palette.ringEnergy, size: size) {
+                column("Energy", detail: "\(Int((wellbeing.energy * 100).rounded()))%", color: wellbeing.energyColor) {
+                    Gauge(share: wellbeing.energy, color: wellbeing.energyColor, size: size) {
                         Text(mood.emoji).font(.system(size: size * 0.36))
                     }
                 }
             }
-            Text(mood == .idle ? wellbeing.advice : "\(mood.title). \(wellbeing.advice)")
+            Text(mood == .idle || mood == .dayOff ? wellbeing.advice : "\(mood.title). \(wellbeing.advice)")
                 .font(large ? .callout : .caption)
                 .foregroundStyle(mood == .overworked ? Palette.focus : .secondary)
                 .multilineTextAlignment(.center)

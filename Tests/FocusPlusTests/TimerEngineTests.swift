@@ -12,7 +12,8 @@ final class TimerEngineTests: XCTestCase {
         clock = Calendar.current.date(bySettingHour: 10, minute: 0, second: 0, of: Date(timeIntervalSince1970: 1_800_000_000))!
         directory = FileManager.default.temporaryDirectory.appendingPathComponent("focusplus-tests-\(UUID().uuidString)")
         ledger = Ledger(directory: directory)
-        settings.modes = [:]
+        // Most tests were written around a thirty minute session; the mode test resets this.
+        settings.modes = [WorkMode.moderate.rawValue: ModeSettings(sessions: 12, sessionMinutes: 30, breakMinutes: 5)]
         settings.currentMode = .moderate
         settings.longBreakMinutes = 10
         settings.longBreakEvery = 4
@@ -143,13 +144,13 @@ final class TimerEngineTests: XCTestCase {
         XCTAssertEqual(engine.todayBreakMinutes, 10)
         XCTAssertEqual(engine.todayCoins, 80)
         XCTAssertEqual(engine.wellbeing.stretch, 20)
-        XCTAssertEqual(engine.wellbeing.recommendedRest, 26, "moderate: two hours of rest for six of focus")
+        XCTAssertEqual(engine.wellbeing.recommendedRest, 10, "one five minute break for each of the two sessions done")
         XCTAssertEqual(Ledger(directory: directory).breakMinutes(on: clock), 10)
     }
 
     func testMoodAndVerdictScale() {
         func mood(_ focus: Int, rest: Int, stretch: Int = 30) -> Wellbeing.Mood {
-            Wellbeing(focusMinutes: focus, breakMinutes: rest, goal: 360, stretch: stretch).mood
+            Wellbeing(focusMinutes: focus, breakMinutes: rest, goal: 360, stretch: stretch, sessionMinutes: 30).mood
         }
         XCTAssertEqual(mood(0, rest: 0), .idle)
         // Rest in step with the plan: two hours of rest for six of focus.
@@ -263,93 +264,146 @@ final class TimerEngineTests: XCTestCase {
         XCTAssertEqual(BreakKind(minutes: 5, settings: settings).name, "Tea")
         XCTAssertEqual(BreakKind(minutes: 20, settings: settings).name, "Long coffee", "closest shorter preset")
 
-        // Moderate is the classic Pomodoro day: six hours of focus, two of rest.
-        XCTAssertEqual(settings.dailyGoal, 360)
-        XCTAssertEqual(settings.dailyRest, 120)
-        XCTAssertTrue(settings.settings(for: .moderate).pomodoroRest.contains(120))
-        XCTAssertEqual(settings.settings(for: .moderate).pomodoroRest, 108...162)
-        engine.logPastFocus(minutes: 120)
-        XCTAssertEqual(engine.wellbeing.recommendedRest, 40)
+        // Moderate out of the box: fifteen rounds of 25 and 5, a 7.5 hour day.
+        settings.modes = [:]
+        XCTAssertEqual(WorkMode.allCases.map(\.title), ["Day off", "Chill", "Moderate", "Hardcore"])
+        XCTAssertEqual(settings.dailyGoal, 375)
+        XCTAssertEqual(settings.dailyRest, 75)
+        XCTAssertEqual(settings.focusMinutes, 25)
+        XCTAssertEqual(settings.settings(for: .moderate).dayMinutes, 450)
+        XCTAssertEqual(settings.settings(for: .light).dayMinutes, 300)
+        XCTAssertEqual(settings.settings(for: .hardcore).dayMinutes, 600)
+        // Rest is due in the rhythm of the mode: 5 minutes for every 25 of focus.
+        engine.logPastFocus(minutes: 100)
+        XCTAssertEqual(engine.wellbeing.recommendedRest, 20)
+        XCTAssertEqual(engine.wellbeing.sessionsDone, 4)
+        XCTAssertEqual(engine.wellbeing.sessionsGoal, 15)
 
         settings.currentMode = .hardcore
-        XCTAssertEqual(settings.dailyGoal, 480)
-        XCTAssertEqual(settings.focusMinutes, 45)
-        XCTAssertEqual(engine.wellbeing.recommendedRest, 30)
+        XCTAssertEqual(settings.dailyGoal, 500)
+        XCTAssertEqual(engine.wellbeing.sessionsGoal, 20)
 
         // Each mode keeps its own edits; editing one that is not in use changes nothing live.
-        settings.update(.light) { $0.focusGoal = 300; $0.restGoal = 100 }
-        XCTAssertEqual(settings.dailyGoal, 480)
+        settings.update(.light) { $0.sessions = 12 }
+        XCTAssertEqual(settings.dailyGoal, 500)
         settings.currentMode = .light
         XCTAssertEqual(settings.dailyGoal, 300)
-        XCTAssertEqual(settings.dailyRest, 100)
-        XCTAssertEqual(settings.focusMinutes, 25)
         settings.update(.light) { $0.sessionMinutes = 20 }
         XCTAssertEqual(settings.focusMinutes, 20, "editing the mode in use applies at once")
         settings.reset(.light)
-        XCTAssertEqual(settings.dailyGoal, 240)
-        settings.currentMode = .moderate
+        XCTAssertEqual(settings.dailyGoal, 250)
+    }
+
+    /// A day off asks for nothing, keeps the working mode's numbers, and ends by itself the next day.
+    func testDayOff() {
+        engine.logPastFocus(minutes: 400)
+        XCTAssertNotNil(engine.wellbeing.breakHint)
+        settings.currentMode = .dayOff
+        XCTAssertEqual(settings.dailyGoal, 360, "the working mode's numbers stay")
         XCTAssertEqual(settings.focusMinutes, 30)
+        XCTAssertEqual(engine.wellbeing.mood, .dayOff)
+        XCTAssertEqual(engine.wellbeing.energy, 1)
+        XCTAssertNil(engine.wellbeing.breakHint)
+        XCTAssertEqual(engine.wellbeing.advice, "Rest today. Back to work tomorrow.")
+        XCTAssertEqual(settings.summary(for: .dayOff), "No goal, no reminders, until tomorrow")
+        settings.update(.dayOff) { $0.sessions = 3 }
+        XCTAssertEqual(settings.dailyGoal, 360, "a day off has nothing to edit")
+
+        settings.endDayOffIfOver(now: Date())
+        XCTAssertEqual(settings.currentMode, .dayOff, "still the same day")
+        settings.endDayOffIfOver(now: Date().addingTimeInterval(24 * 3600))
+        XCTAssertEqual(settings.currentMode, .moderate)
+        XCTAssertNotEqual(engine.wellbeing.mood, .dayOff)
+    }
+
+    /// Settings saved by earlier versions held minutes of focus: they turn into sessions.
+    func testOldModeSettingsBecomeSessions() throws {
+        let old = #"{"focusGoal":360,"restGoal":120,"sessionMinutes":30,"breakMinutes":5}"#
+        let mode = try JSONDecoder().decode(ModeSettings.self, from: Data(old.utf8))
+        XCTAssertEqual(mode, ModeSettings(sessions: 12, sessionMinutes: 30, breakMinutes: 5))
+        let again = try JSONDecoder().decode(ModeSettings.self, from: JSONEncoder().encode(mode))
+        XCTAssertEqual(again, mode)
+    }
+
+    /// After an hour without a break the app suggests one; after half the day, a long one.
+    func testBreakHints() {
+        XCTAssertNil(Wellbeing(focusMinutes: 50, breakMinutes: 5, goal: 375, stretch: 50).breakHint)
+        XCTAssertEqual(Wellbeing(focusMinutes: 60, breakMinutes: 0, goal: 375, stretch: 60).breakHint,
+                       "1 h without a break. Time for a coffee.")
+        let half = Wellbeing(focusMinutes: 190, breakMinutes: 35, goal: 375, stretch: 25, longestBreak: 5)
+        XCTAssertEqual(half.breakHint, "3 h 10 min of focus today. Take a long break.")
+        XCTAssertNil(Wellbeing(focusMinutes: 190, breakMinutes: 60, goal: 375, stretch: 25, longestBreak: 30).breakHint)
+        // In Hardcore the long break is due after four hours, not after half of the ten.
+        XCTAssertTrue(Wellbeing(focusMinutes: 240, breakMinutes: 40, goal: 500, stretch: 0, longestBreak: 10).longBreakIsDue)
+        XCTAssertFalse(Wellbeing(focusMinutes: 230, breakMinutes: 40, goal: 500, stretch: 0, longestBreak: 10).longBreakIsDue)
+
+        // In the engine: three sessions back to back, then the finish window brings the break forward.
+        engine.startFocus(); advance(minutes: 30); engine.startFocus(); advance(minutes: 30)
+        XCTAssertNotNil(engine.wellbeing.breakHint)
+        XCTAssertEqual(engine.suggestedBreakMinutes, 5)
+        engine.startBreak(minutes: 30); advance(minutes: 30); engine.stop()
+        XCTAssertNil(engine.wellbeing.breakHint)
     }
 
     /// The whole away-from-the-desk story, answered from the phone at each step.
     func testPhoneStoryStepAwayAndComeBack() {
+        XCTAssertEqual(PhonePush.buttons().map(\.label), ["+5 min", "+15 min", "+30 min"])
         engine.startFocus(); advance(minutes: 30)
         XCTAssertEqual(engine.runState, .finished)
-        let afterFocus = PhonePush.buttons(finished: .focus, settings: settings)
 
-        // "+10 min break": the session is logged and a ten minute break starts.
-        XCTAssertTrue(PhonePush.apply(afterFocus[1].command, to: engine).applied)
+        // Eight minutes later, at the coffee machine: "+15 min". The session is logged and a break runs
+        // for fifteen more minutes; the eight already spent away count as rest too.
+        advance(minutes: 8)
+        let first = PhonePush.apply(.away(15), to: engine)
+        XCTAssertTrue(first.applied)
+        XCTAssertTrue(first.text.contains("15 more min. Ends at "))
         XCTAssertTrue(engine.phase.isBreak)
         XCTAssertEqual(engine.runState, .running)
+        XCTAssertEqual(Int(engine.remaining), 900)
         XCTAssertEqual(ledger.entries.map(\.minutes), [30])
-        advance(minutes: 10)
+        XCTAssertEqual(engine.liveBreakMinutes, 8)
+        advance(minutes: 15)
         XCTAssertEqual(engine.runState, .finished, "the break is over and waits for an answer")
 
-        // "+10 min break" again: the same break carries on for ten more minutes.
-        let afterBreak = PhonePush.buttons(finished: engine.phase, settings: settings)
-        XCTAssertEqual(afterBreak.map(\.label), ["+30 min focus", "+10 min break", "Stop"])
-        let extended = PhonePush.apply(afterBreak[1].command, to: engine)
-        XCTAssertTrue(extended.applied)
-        XCTAssertTrue(extended.text.hasPrefix("Added 10 min. Ends at "))
-        XCTAssertTrue(engine.phase.isBreak)
-        XCTAssertEqual(engine.runState, .running)
-        XCTAssertEqual(Int(engine.remaining), 600)
-        advance(minutes: 10)
+        // Still away four minutes after that: "+5 min" carries the same break on.
+        advance(minutes: 4)
+        XCTAssertTrue(PhonePush.apply(.away(5), to: engine).applied)
+        XCTAssertEqual(Int(engine.remaining), 300)
+        advance(minutes: 5)
 
-        // "+30 min focus": back to work. The break is logged as one break of twenty minutes.
-        XCTAssertTrue(PhonePush.apply(afterBreak[0].command, to: engine).applied)
+        // Back at the Mac: focus starts there. One break of 8 + 15 + 4 + 5 minutes is logged.
+        engine.startFocus()
         XCTAssertEqual(engine.phase, .focus)
-        XCTAssertEqual(ledger.breaks.map(\.minutes), [20])
+        XCTAssertEqual(ledger.breaks.map(\.minutes), [32])
+        XCTAssertEqual(ledger.breaks.first.map { Int(engine.session!.start.timeIntervalSince($0.start)) }, 32 * 60)
     }
 
     func testPhoneCommands() {
-        XCTAssertEqual(PhonePush.Command("extend:5"), .extend(5))
-        XCTAssertEqual(PhonePush.Command(" Break:60\n"), .rest(60))
-        XCTAssertEqual(PhonePush.Command("focus:30"), .focus(30))
-        XCTAssertEqual(PhonePush.Command("complete"), .complete)
-        XCTAssertNil(PhonePush.Command("extend:0"))
+        XCTAssertEqual(PhonePush.Command("away:15"), .away(15))
+        XCTAssertEqual(PhonePush.Command(" Away:30\n"), .away(30))
+        XCTAssertNil(PhonePush.Command("away:0"))
         XCTAssertNil(PhonePush.Command("rm -rf"))
         XCTAssertNil(PhonePush.Command(""))
-        XCTAssertEqual(PhonePush.Command(PhonePush.Command.rest(15).text), .rest(15))
+        XCTAssertEqual(PhonePush.Command(PhonePush.Command.away(15).text), .away(15))
+        // Buttons of notifications sent by an earlier version still work.
+        XCTAssertEqual(PhonePush.Command("extend:5"), .extend(5))
+        XCTAssertEqual(PhonePush.Command("break:60"), .rest(60))
+        XCTAssertEqual(PhonePush.Command("complete"), .complete)
 
-        // Session ended, the phone answers "+15": it stays one session of 45 minutes.
-        engine.startFocus(); advance(minutes: 30)
-        let buttons = PhonePush.buttons(finished: .focus, settings: settings)
-        XCTAssertEqual(buttons.map(\.label), ["+15 min focus", "+10 min break", "Stop"])
-        XCTAssertTrue(PhonePush.apply(buttons[0].command, to: engine).applied)
-        XCTAssertEqual(engine.runState, .running)
-        advance(minutes: 15)
-        // Then "+10 min break" from the phone.
-        XCTAssertTrue(PhonePush.apply(buttons[1].command, to: engine).applied)
-        XCTAssertEqual(engine.phaseTitle, "Double coffee")
-        XCTAssertEqual(ledger.entries.map(\.minutes), [45])
-        XCTAssertTrue(PhonePush.apply(.complete, to: engine).applied)
-        XCTAssertEqual(ledger.breaks.map(\.minutes), [10])
-        XCTAssertTrue(PhonePush.apply(buttons[2].command, to: engine).applied)
-        XCTAssertEqual(engine.phase, .idle)
-        XCTAssertFalse(PhonePush.apply(.extend(5), to: engine).applied, "nothing running, nothing to extend")
-        XCTAssertEqual(PhonePush.buttons(finished: .shortBreak, settings: settings).map(\.label),
-                       ["+30 min focus", "+10 min break", "Stop"])
+        // A running break gets longer; a running focus session ends and rest begins.
+        engine.startBreak(minutes: 10); advance(minutes: 4)
+        XCTAssertTrue(PhonePush.apply(.away(5), to: engine).applied)
+        XCTAssertEqual(Int(engine.remaining), 660)
+        engine.stop()
+        engine.startFocus(); advance(minutes: 12)
+        XCTAssertTrue(PhonePush.apply(.away(15), to: engine).applied)
+        XCTAssertTrue(engine.phase.isBreak)
+        XCTAssertEqual(ledger.entries.map(\.minutes), [12])
+        XCTAssertEqual(engine.liveBreakMinutes, 0)
+        // With nothing running the phone can still start a break.
+        engine.stop()
+        XCTAssertTrue(PhonePush.apply(.away(5), to: engine).applied)
+        XCTAssertFalse(PhonePush.apply(.extend(5), to: { engine.stop(); return engine }()).applied, "nothing running, nothing to extend")
     }
 
     func testStartingANewSessionClosesThePreviousOne() {

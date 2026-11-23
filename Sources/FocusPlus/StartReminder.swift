@@ -48,12 +48,6 @@ final class StartReminder {
     private var logic = StartReminderLogic(threshold: 600)
     private var subscription: AnyCancellable?
 
-    /// Seconds since the last key press, click or pointer move anywhere on this Mac. Needs no special permission.
-    private var secondsSinceInput: TimeInterval {
-        guard let any = CGEventType(rawValue: ~0) else { return .infinity }
-        return CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: any)
-    }
-
     func start(engine: TimerEngine = .shared, settings: AppSettings = .shared) {
         subscription = Timer.publish(every: 20, on: .main, in: .common).autoconnect().sink { [weak self] _ in
             self?.check(engine: engine, settings: settings)
@@ -63,8 +57,8 @@ final class StartReminder {
     private func check(engine: TimerEngine, settings: AppSettings) {
         logic.threshold = TimeInterval(max(1, settings.remindAfterMinutes) * 60)
         // Past the daily goal the evening is yours: no reminders.
-        let allowed = settings.remindToStart && engine.todayCoins < settings.dailyGoal
-        guard let minutes = logic.step(now: Date(), secondsSinceInput: secondsSinceInput,
+        let allowed = settings.remindToStart && !settings.currentMode.isDayOff && engine.todayCoins < settings.dailyGoal
+        guard let minutes = logic.step(now: Date(), secondsSinceInput: ActivityLog.secondsSinceInput,
                                        timerIdle: engine.phase == .idle, allowed: allowed) else { return }
         Notifier.shared.remindToStart(activeMinutes: minutes, focusMinutes: settings.focusMinutes)
     }

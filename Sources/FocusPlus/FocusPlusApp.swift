@@ -63,7 +63,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         WidgetBridge.shared.start()
         PhonePush.shared.start()
+        // Taking a day off is acknowledged once; after that the app stays quiet until tomorrow.
+        AppSettings.shared.$currentMode.removeDuplicates().dropFirst().sink { mode in
+            if mode.isDayOff { Notifier.shared.note(title: "Day off", body: "Rest today. No reminders until tomorrow.") }
+        }
+        .store(in: &subscriptions)
         StartReminder.shared.start()
+        ActivityLog.shared.start()
         Updater.shared.start()
 
         // Pick up changes synced from another Mac: every half minute and whenever the app comes forward.
@@ -85,7 +91,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Developer aids, all driven by environment variables:
     /// FOCUSPLUS_SHOW=stats,settings,panel opens those windows at launch,
     /// FOCUSPLUS_DEMO_SECONDS=5 runs a focus session that many seconds long,
-    /// FOCUSPLUS_DEMO_ACTION=extend15|break is applied two seconds after launch,
+    /// FOCUSPLUS_DEMO_ACTION=extend15|break|note|dayoff is applied two seconds after launch,
     /// FOCUSPLUS_SNAPSHOT_DIR=/path saves PNGs of the open windows after eight seconds and quits,
     /// FOCUSPLUS_DATA_DIR=/path keeps the ledger somewhere other than Application Support.
     private func runDebugHooks() {
@@ -116,6 +122,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 switch action {
                 case "extend15": TimerEngine.shared.extend(minutes: 15)
                 case "break": TimerEngine.shared.startBreak()
+                case "note": Notifier.shared.note(title: "Focus Energy", body: "Test notification.")
+                case "dayoff":
+                    // Takes a day off for three seconds and puts the mode back.
+                    let before = AppSettings.shared.currentMode
+                    AppSettings.shared.currentMode = .dayOff
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 3) { AppSettings.shared.currentMode = before }
                 default: break
                 }
             }
@@ -145,6 +157,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         TimerEngine.shared.prepareForQuit()
+        ActivityLog.shared.save()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }

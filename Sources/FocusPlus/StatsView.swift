@@ -5,6 +5,7 @@ struct StatsView: View {
     @ObservedObject var engine: TimerEngine
     @ObservedObject var settings: AppSettings
     @ObservedObject var ledger: Ledger
+    @ObservedObject var activity = ActivityLog.shared
 
     @State private var range = 14
     @State private var weekOffset = 0
@@ -17,6 +18,7 @@ struct StatsView: View {
                     .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
                 DayRatingRow(ledger: ledger, day: engine.today, prompt: "How does today feel for productivity?", large: true)
                 weekSection
+                activitySection
                 tiles
                 chart
                 todayList
@@ -104,6 +106,12 @@ struct StatsView: View {
                 Text(day.breakMinutes > 0 ? "\(day.breakMinutes)" : "–").monospacedDigit()
             }
             .font(.caption2).foregroundStyle(.secondary)
+            HStack(spacing: 2) {
+                Image(systemName: "laptopcomputer")
+                Text(activity.minutes(on: day.day) > 0 ? Format.short(minutes: activity.minutes(on: day.day)) : "–").monospacedDigit()
+            }
+            .font(.caption2).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.7)
+            .help("Time at the Mac that day")
             Text(DayFeeling.emoji(day.rating) ?? "–")
                 .font(.system(size: 14)).foregroundStyle(.secondary).frame(height: 18)
                 .help(day.rating.map { "You rated this day: \(DayFeeling.names[$0 - 1])" } ?? "Not rated")
@@ -139,6 +147,27 @@ struct StatsView: View {
             parts.append(String(format: "your rating %.1f of 5", Double(rated.reduce(0, +)) / Double(rated.count)))
         }
         return parts.joined(separator: "  ·  ")
+    }
+
+    // MARK: At the Mac
+
+    /// Today's time at the computer next to the focus that was logged.
+    private var activitySection: some View {
+        let picture = ActivityPicture(atMac: activity.minutes(on: engine.today), focus: engine.todayCoins)
+        return VStack(alignment: .leading, spacing: 10) {
+            Text("At the Mac today").font(.headline)
+            HStack(spacing: 12) {
+                tile("At the Mac", Format.short(minutes: picture.atMac), "keyboard or mouse")
+                tile("In focus", Format.short(minutes: picture.focus),
+                     picture.atMac > 0 ? "\(Int((picture.share * 100).rounded()))% of Mac time" : "logged with the timer")
+                tile("Without a timer", Format.short(minutes: picture.untimed), "nothing logged")
+                tile("Breaks", Format.short(minutes: engine.todayBreakMinutes), "logged today")
+            }
+            Text("Counted from keyboard and mouse input only, on this Mac, while the app is open. "
+                 + "A pause in input of up to five minutes still counts; a call or a video without touching the Mac does not. "
+                 + "The laptop row under each day of the week shows the same number for that day.")
+                .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     // MARK: Summary tiles

@@ -47,6 +47,8 @@ final class TimerEngine: ObservableObject {
     let ledger: Ledger
 
     private var endDate: Date?
+    /// When the countdown that is waiting for a decision reached zero.
+    private var finishedAt: Date?
     private var breakStart: Date?
     private var ticker: Timer?
     private var lastSavedMinute = -1
@@ -101,8 +103,12 @@ final class TimerEngine: ObservableObject {
     /// Energy and rest picture for today.
     var wellbeing: Wellbeing {
         let stretch = phase.isBreak ? 0 : ledger.focusMinutesSinceLastBreak(on: now()) + liveCoins
-        return Wellbeing(focusMinutes: todayCoins, breakMinutes: todayBreakMinutes,
-                         goal: settings.dailyGoal, stretch: stretch, restGoal: settings.dailyRest)
+        var picture = Wellbeing(focusMinutes: todayCoins, breakMinutes: todayBreakMinutes,
+                         goal: settings.dailyGoal, stretch: stretch, restGoal: settings.dailyRest,
+                         sessionMinutes: settings.focusMinutes,
+                         longestBreak: max(ledger.breaks(on: now()).map(\.minutes).max() ?? 0, liveBreakMinutes))
+        picture.dayOff = settings.currentMode.isDayOff
+        return picture
     }
 
     var progress: Double {
@@ -118,6 +124,12 @@ final class TimerEngine: ObservableObject {
 
     var nextBreakMinutes: Int {
         nextBreakIsLong ? settings.longBreakMinutes : settings.shortBreakMinutes
+    }
+
+    /// The break button to bring forward when a session ends: the first long one once a long break is due.
+    var suggestedBreakMinutes: Int {
+        guard wellbeing.longBreakIsDue else { return nextBreakMinutes }
+        return settings.breakOptions.first { $0 >= Wellbeing.longBreakMinutes } ?? nextBreakMinutes
     }
 
     private var sessionCountsAsCompleted: Bool {
@@ -188,6 +200,26 @@ final class TimerEngine: ObservableObject {
         let length = minutes ?? (long ? settings.longBreakMinutes : settings.shortBreakMinutes)
         breakName = settings.breakPreset(minutes: length)?.name ?? "Break"
         begin(seconds: Double(max(1, length) * 60))
+    }
+
+    /// For the phone: the person walked away when the timer ended and wants `minutes` more from now.
+    /// The time since the timer ended counts as rest too, so nothing spent away from the Mac is lost.
+    func restWhileAway(minutes: Int) {
+        guard minutes > 0 else { return }
+        let extra = Double(minutes * 60)
+        // A Mac that slept through the night must not turn into a ten hour break.
+        let away = runState == .finished ? min(4 * 3600, max(0, now().timeIntervalSince(finishedAt ?? now()))) : 0
+        if phase.isBreak {
+            guard runState == .finished else { extend(minutes: minutes); return }
+            plannedSeconds += away + extra
+            remaining = extra
+            endDate = now().addingTimeInterval(extra)
+            runState = .running
+        } else {
+            startBreak(minutes: minutes)
+            breakStart = now().addingTimeInterval(-away)
+            plannedSeconds += away
+        }
     }
 
     /// Counts the running timer as done in full and ends it. For when the time was really spent
@@ -266,7 +298,7 @@ final class TimerEngine: ObservableObject {
 
     func tick() {
         let day = Calendar.current.startOfDay(for: now())
-        if day != today { today = day }
+        if day != today { today = day; settings.endDayOffIfOver(now: now()) }
 
         guard runState == .running, let endDate else { return }
         let left = max(0, endDate.timeIntervalSince(now()))
@@ -277,6 +309,7 @@ final class TimerEngine: ObservableObject {
             persistActive(force: false)
         }
         if left <= 0 {
+            finishedAt = endDate
             self.endDate = nil
             runState = .finished
             persistActive(force: true)

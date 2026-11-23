@@ -23,7 +23,7 @@ struct SettingsView: View {
         .frame(width: 540, height: tab == 0 ? 560 : (tab == 1 ? 640 : 760))
         .onAppear {
             extensionsText = settings.extensionOptions.map(String.init).joined(separator: ", ")
-            editing = settings.currentMode
+            editing = settings.currentMode.isDayOff ? settings.modeBeforeDayOff : settings.currentMode
         }
         .onDisappear(perform: applyExtensions)
         .onChange(of: extensionsText) { _ in applyExtensions(keepText: true) }
@@ -33,30 +33,26 @@ struct SettingsView: View {
 
     private var modes: some View {
         let mode = settings.settings(for: editing)
-        let classic = mode.pomodoroRest
         return Form {
             Section {
                 Picker("Mode in use", selection: $settings.currentMode) {
                     ForEach(WorkMode.allCases) { Label($0.title, systemImage: $0.symbol).tag($0) }
                 }
-                Text("The mode sets your limits for the day. You can also switch it from the top of the timer window.")
+                Text("The mode sets how many sessions make your day. Day off has no goal and no reminders, and ends by itself at midnight. You can also switch it from the top of the timer window.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("Edit a mode") {
                 Picker("Mode", selection: $editing) {
-                    ForEach(WorkMode.allCases) { Text($0.title).tag($0) }
+                    ForEach(WorkMode.working) { Text($0.title).tag($0) }
                 }
                 .pickerStyle(.segmented).labelsHidden()
-                Stepper("Focus per day: \(Format.duration(minutes: mode.focusGoal))",
-                        value: binding(\.focusGoal), in: 30...960, step: 30)
-                Stepper("Rest per day: \(Format.duration(minutes: mode.restGoal))",
-                        value: binding(\.restGoal), in: 0...480, step: 15)
-                Text("That is \(mode.restGoal * 60 / max(mode.focusGoal, 1)) min of rest per hour of focus. "
-                     + "Classic Pomodoro for \(Format.duration(minutes: mode.focusGoal)) of focus gives "
-                     + "\(Format.duration(minutes: classic.lowerBound)) to \(Format.duration(minutes: classic.upperBound)) of rest.")
+                Stepper("Sessions per day: \(mode.sessions)", value: binding(\.sessions), in: 1...40)
+                Stepper("Session: \(mode.sessionMinutes) min", value: binding(\.sessionMinutes), in: 5...240, step: 5)
+                Stepper("Break after a session: \(mode.breakMinutes) min", value: binding(\.breakMinutes), in: 5...120, step: 5)
+                Text("That is \(Format.duration(minutes: mode.focusGoal)) of focus and \(Format.duration(minutes: mode.restGoal)) of short breaks: "
+                     + "a \(Format.duration(minutes: mode.dayMinutes)) day. Lunch and longer breaks come on top. "
+                     + "After an hour without a break the app suggests one.")
                     .font(.caption).foregroundStyle(.secondary)
-                Stepper("Default session: \(mode.sessionMinutes) min", value: binding(\.sessionMinutes), in: 5...240, step: 5)
-                Stepper("Suggested break: \(mode.breakMinutes) min", value: binding(\.breakMinutes), in: 5...120, step: 5)
                 Text("Past \(Format.duration(minutes: mode.focusGoal * 4 / 3)) a day counts as heavy, past \(Format.duration(minutes: mode.focusGoal * 10 / 6)) as overwork.")
                     .font(.caption).foregroundStyle(.secondary)
                 HStack {

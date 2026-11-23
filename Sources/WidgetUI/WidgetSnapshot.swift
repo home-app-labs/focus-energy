@@ -68,7 +68,7 @@ public struct WidgetSnapshot: Codable, Equatable {
         let coins = [360, 410, 300, 250, 0, 0, 0]
         let faces = ["😄", "😄", "🙂", "🙂", "😴", "😴", "😴"]
         let point = Point(date: now, coins: 250, breakMinutes: 30, recommendedRest: 41, energy: 0.78,
-                          moodEmoji: "😄", moodTitle: "Full of energy", advice: "Good rhythm of focus and rest.")
+                          moodEmoji: "😄", moodTitle: "Full of energy", advice: "👍 Good rhythm of focus and rest.")
         var week: [Day] = []
         for index in 0..<7 {
             let day: Date = now.addingTimeInterval(Double(index - 3) * 86400)
@@ -121,7 +121,7 @@ public struct WidgetSnapshot: Codable, Equatable {
         copy.endsAt = nil
         copy.remainingSeconds = 0
         copy.points = [Point(date: today, coins: 0, breakMinutes: 0, recommendedRest: 0, energy: 1,
-                             moodEmoji: "😴", moodTitle: "Not started yet", advice: "Pick a length and start.")]
+                             moodEmoji: "😴", moodTitle: "Not started yet", advice: "👉 Pick a length and start.")]
         if week.contains(where: { calendar.isDate($0.day, inSameDayAs: date) }) {
             copy.week = week.map { day in
                 var day = day
