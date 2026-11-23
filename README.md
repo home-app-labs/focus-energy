@@ -95,6 +95,7 @@ Environment variables that make the app easier to test. Run the built binary dir
 | `FOCUSPLUS_SHOW=panel,stats,log,settings,widgets,phone` | Open these windows at launch |
 | `FOCUSPLUS_SHOW_LATER=widgets` | The same list, opened four seconds after launch, to see the state after a short demo timer has ended |
 | `FOCUSPLUS_SETTINGS_TAB=0`, `1` or `2` | Which settings tab to show first |
+| `FOCUSPLUS_WEEK=-1` | Show last week instead of this one in Statistics and in the widget, for screenshots early in a week |
 | `FOCUSPLUS_SNAPSHOT_DIR=/path` | After eight seconds save a PNG of every open window there and quit |
 | `FOCUSPLUS_PUSH_TOPIC=name` | Use a throwaway ntfy topic instead of the saved one |
 | `FOCUSPLUS_PUSH_DELAY_SECONDS=5` | Wait that many seconds, instead of the minutes from the settings, before telling the phone |

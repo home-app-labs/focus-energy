@@ -8,7 +8,8 @@ struct StatsView: View {
     @ObservedObject var activity = ActivityLog.shared
 
     @State private var range = 14
-    @State private var weekOffset = 0
+    /// FOCUSPLUS_WEEK=-1 opens on last week, for screenshots early in a week.
+    @State private var weekOffset = min(0, Int(ProcessInfo.processInfo.environment["FOCUSPLUS_WEEK"] ?? "") ?? 0)
 
     var body: some View {
         ScrollView {

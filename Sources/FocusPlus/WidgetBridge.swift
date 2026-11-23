@@ -82,7 +82,10 @@ final class WidgetBridge {
             }
         }
 
-        let week = ledger.week(containing: now).map { day -> WidgetSnapshot.Day in
+        // FOCUSPLUS_WEEK=-1 shows last week, for screenshots early in a week.
+        let weekShift = min(0, Int(ProcessInfo.processInfo.environment["FOCUSPLUS_WEEK"] ?? "") ?? 0)
+        let weekDate = Calendar.current.date(byAdding: .day, value: 7 * weekShift, to: now) ?? now
+        let week = ledger.week(containing: weekDate).map { day -> WidgetSnapshot.Day in
             let isToday = Calendar.current.isDate(day.day, inSameDayAs: now)
             let coins = isToday ? base.focusMinutes : day.coins
             return .init(day: day.day, label: day.day.formatted(.dateTime.weekday(.abbreviated)), coins: coins,
