@@ -218,17 +218,11 @@ public struct FocusWidgetView: View {
                 Image(systemName: "bolt.fill").foregroundStyle(WidgetPalette.focus).font(.system(size: 13))
                 Text(duration(point.coins)).font(.system(size: 17, weight: .bold, design: .rounded)).monospacedDigit()
                     .lineLimit(1).minimumScaleFactor(0.7)
-                Spacer(minLength: 2)
-                // While a timer runs the ring shows the countdown, so the percentage moves here.
-                if snapshot.runState != .idle {
-                    Text(percentText).font(.system(size: 13, weight: .bold, design: .rounded)).monospacedDigit()
-                        .foregroundStyle(.white.opacity(0.8))
-                }
             }
             bar(value: min(1, goalShare), color: WidgetPalette.focus)
             Text(point.coins > snapshot.goal
                     ? "+\(duration(point.coins - snapshot.goal)) over the \(duration(snapshot.goal)) limit"
-                    : "\(point.coins / max(snapshot.defaultFocusMinutes, 1)) of \(max(1, snapshot.goal / max(snapshot.defaultFocusMinutes, 1))) sessions today")
+                    : "\(point.coins / max(snapshot.defaultFocusMinutes, 1)) of \(max(1, snapshot.goal / max(snapshot.defaultFocusMinutes, 1))) sessions today · \(percentText) goal")
                 .font(.system(size: 10)).foregroundStyle(.white.opacity(0.6)).lineLimit(1)
         }
     }
@@ -238,7 +232,11 @@ public struct FocusWidgetView: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 4) {
                 Text(point.moodEmoji).font(.system(size: 12))
-                Text(point.moodTitle).font(.system(size: 13, weight: .semibold)).lineLimit(1)
+                Text(point.moodTitle).font(.system(size: 13, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.7)
+                Spacer(minLength: 2)
+                Text("\(Int((point.energy * 100).rounded()))%")
+                    .font(.system(size: 13, weight: .bold, design: .rounded)).monospacedDigit()
+                    .foregroundStyle(WidgetPalette.energy(point.energy))
             }
             bar(value: point.energy, color: WidgetPalette.energy(point.energy))
             HStack(spacing: 3) {

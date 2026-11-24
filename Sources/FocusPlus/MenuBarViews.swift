@@ -138,7 +138,7 @@ struct PopoverView: View {
                 timerRing(size: 150)
                 VStack(alignment: .leading, spacing: 14) {
                     statBar(symbol: "bolt.fill", value: Format.duration(minutes: wellbeing.focusMinutes),
-                            detail: "\(wellbeing.sessionsDone) of \(wellbeing.sessionsGoal) sessions today",
+                            detail: "\(wellbeing.sessionsDone) of \(wellbeing.sessionsGoal) sessions today · \(Int((wellbeing.focusShare * 100).rounded()))% goal",
                             share: wellbeing.focusShare, color: Palette.ringFocus)
                     energyBlock(wellbeing)
                 }
