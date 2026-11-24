@@ -124,8 +124,8 @@ struct PopoverView: View {
 
     private func sessionSummary(_ session: ActiveSession) -> String {
         let added = session.extensions.reduce(0, +)
-        return added > 0 ? "\(session.baseMinutes) + \(added) = \(session.plannedMinutes) min"
-                         : "\(session.baseMinutes) min session"
+        return added > 0 ? "\(session.baseMinutes) + \(added) = \(Format.duration(minutes: session.plannedMinutes))"
+                         : "\(Format.duration(minutes: session.baseMinutes)) session"
     }
 
     /// The top card: the countdown inside a big ring on the left, today's focus and rest on the right,
@@ -197,8 +197,8 @@ struct PopoverView: View {
         case (_, .finished): return "break is over"
         case (_, .paused): return "paused"
         case (.idle, _): return "ready"
-        case (.focus, _): return "\(engine.liveCoins) min focused"
-        default: return "\(engine.liveBreakMinutes) min rested"
+        case (.focus, _): return "\(Format.duration(minutes: engine.liveCoins)) focused"
+        default: return "\(Format.duration(minutes: engine.liveBreakMinutes)) rested"
         }
     }
 

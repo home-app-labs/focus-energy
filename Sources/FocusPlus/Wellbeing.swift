@@ -157,7 +157,7 @@ struct Wellbeing: Equatable {
         if focusMinutes == 0 { return "Pick a length and start." }
         if overtime > 0 && mood == .overworked { return "Well past the goal. Time to stop for today." }
         if let breakHint { return breakHint }
-        if restDeficit >= 10 { return "\(restDeficit) min of rest owed. A coffee would help." }
+        if restDeficit >= 10 { return "\(Format.duration(minutes: restDeficit)) of rest owed. A coffee would help." }
         if overtime > 0 { return "Goal done. Anything more is overtime." }
         return "Good rhythm of focus and rest."
     }

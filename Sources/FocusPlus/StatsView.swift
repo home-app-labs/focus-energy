@@ -122,7 +122,7 @@ struct StatsView: View {
         .background(verdict.color.opacity(day.coins > 0 ? 0.16 : 0.06), in: RoundedRectangle(cornerRadius: 10))
         .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(isToday ? Color.primary.opacity(0.5) : .clear, lineWidth: 1.5))
         .opacity(isFuture ? 0.45 : 1)
-        .help("\(verdict.title): \(Format.duration(minutes: day.coins)) of focus, \(day.breakMinutes) min of breaks")
+        .help("\(verdict.title): \(Format.duration(minutes: day.coins)) of focus, \(Format.duration(minutes: day.breakMinutes)) of breaks")
     }
 
     private func weekEmoji(total: Int, overworkDays: Int, heavyDays: Int) -> String {
@@ -280,14 +280,14 @@ struct StatsView: View {
                     .background(Palette.focus.opacity(0.2), in: Capsule())
             }
             Spacer()
-            Text("\(coins) min").monospacedDigit().foregroundStyle(.secondary)
+            Text(Format.duration(minutes: coins)).monospacedDigit().foregroundStyle(.secondary)
         }
         .padding(.vertical, 6).padding(.horizontal, 10)
         .background(.quaternary.opacity(0.35), in: RoundedRectangle(cornerRadius: 8))
     }
 
     private func plan(base: Int, extensions: [Int]) -> String {
-        guard !extensions.isEmpty else { return "\(base) min" }
+        guard !extensions.isEmpty else { return Format.duration(minutes: base) }
         return ([String(base)] + extensions.map(String.init)).joined(separator: " + ") + " min"
     }
 }
