@@ -445,6 +445,18 @@ final class TimerEngineTests: XCTestCase {
         XCTAssertEqual(revived.entries.map(\.minutes), [45])
     }
 
+    func testUnansweredPromptDoesNotCarryIntoTheNextDay() {
+        engine.startFocus(minutes: 5)
+        advance(minutes: 5)
+        XCTAssertEqual(engine.runState, .finished)
+        let yesterday = clock
+        advance(minutes: 24 * 60)
+        XCTAssertEqual(engine.phase, .idle)
+        XCTAssertEqual(engine.runState, .idle)
+        XCTAssertEqual(engine.todayCoins, 0)
+        XCTAssertEqual(ledger.coins(on: yesterday), 5)
+    }
+
     func testLedgerPersistsAndAggregates() {
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: clock).addingTimeInterval(9 * 3600)

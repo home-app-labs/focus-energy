@@ -107,6 +107,14 @@ enum AppWindows {
             }
             window.center()
             windows[id] = window
+            if id == "choice" {
+                // Closing the prompt after a break means "not now": the timer stops, nothing starts.
+                // After focus the window stays a plain close, so that the session can still be extended.
+                NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window, queue: .main) { _ in
+                    let engine = TimerEngine.shared
+                    if engine.runState == .finished, engine.phase.isBreak { engine.stop() }
+                }
+            }
         }
         if floating { window.center() }
         NSApp.activate(ignoringOtherApps: true)

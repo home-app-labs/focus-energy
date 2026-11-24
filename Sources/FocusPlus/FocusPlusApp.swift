@@ -91,7 +91,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Developer aids, all driven by environment variables:
     /// FOCUSPLUS_SHOW=stats,settings,panel opens those windows at launch,
     /// FOCUSPLUS_DEMO_SECONDS=5 runs a focus session that many seconds long,
-    /// FOCUSPLUS_DEMO_ACTION=extend15|break|note|dayoff is applied two seconds after launch,
+    /// FOCUSPLUS_DEMO_ACTION=extend15|break|breakdone|note|dayoff is applied two seconds after launch,
     /// FOCUSPLUS_SNAPSHOT_DIR=/path saves PNGs of the open windows after eight seconds and quits,
     /// FOCUSPLUS_DATA_DIR=/path keeps the ledger somewhere other than Application Support.
     private func runDebugHooks() {
@@ -122,6 +122,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 switch action {
                 case "extend15": TimerEngine.shared.extend(minutes: 15)
                 case "break": TimerEngine.shared.startBreak()
+                case "breakdone": TimerEngine.shared.startBreak(minutes: 10, demoSeconds: 1)
                 case "note": Notifier.shared.note(title: "Focus Energy", body: "Test notification.")
                 case "dayoff":
                     // Takes a day off for three seconds and puts the mode back.

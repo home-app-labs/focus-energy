@@ -9,8 +9,13 @@ struct ChoiceView: View {
 
     var body: some View {
         VStack(spacing: 22) {
-            if engine.phase == .focus { focusDone } else { breakDone }
-            TodayCard(engine: engine, settings: settings, ledger: ledger)
+            if engine.phase == .focus {
+                focusDone
+                TodayCard(engine: engine, settings: settings, ledger: ledger)
+            } else {
+                breakDone
+                statusLine
+            }
         }
         .padding(.horizontal, 28)
         .padding(.vertical, 26)
@@ -74,19 +79,47 @@ struct ChoiceView: View {
     private var breakDone: some View {
         VStack(spacing: 22) {
             header(symbol: "cup.and.saucer.fill", color: Palette.rest, title: "Break is over",
-                   subtitle: "Ready for the next stretch of focus?")
+                   subtitle: "\(engine.breakName) · \(Format.duration(minutes: engine.liveBreakMinutes)) rested")
 
-            group("Start focus for") {
-                ExtendButtons(options: settings.startOptions, adds: false, prominent: true) { engine.startFocus(minutes: $0) }
+            // One way forward: the usual session. Another length is a click away in the main window.
+            Button { engine.startFocus() } label: {
+                Label("Start \(settings.focusMinutes) min focus", systemImage: "play.fill")
             }
+            .buttonStyle(TallButtonStyle(tint: Palette.start, height: 54))
+
             group("Need a little more rest?") {
                 BreakButtons(options: settings.breakOptions, adds: true, prominent: true) { engine.extend(minutes: $0) }
             }
-
-            Button { engine.stop() } label: {
-                Label("Stop", systemImage: "stop.fill")
-            }
-            .buttonStyle(TallButtonStyle())
         }
+    }
+
+    /// The day in two small lines: sessions, energy and rest, then the same advice as in the app and the widget.
+    /// Closing the window stands for "not now" and stops the timer, so there is no Stop button.
+    private var statusLine: some View {
+        let wellbeing = engine.wellbeing
+        return VStack(spacing: 8) {
+            Rectangle().fill(.white.opacity(0.1)).frame(height: 1)
+            HStack(spacing: 18) {
+                HStack(spacing: 5) {
+                    Image(systemName: "bolt.fill").foregroundStyle(Palette.ringFocus)
+                    Text("\(wellbeing.sessionsDone) of \(wellbeing.sessionsGoal) sessions")
+                }
+                HStack(spacing: 5) {
+                    Text(wellbeing.mood.emoji)
+                    Text("\(Int((wellbeing.energy * 100).rounded()))%").foregroundStyle(wellbeing.energyColor)
+                }
+                HStack(spacing: 5) {
+                    Image(systemName: "cup.and.saucer.fill").foregroundStyle(Palette.ringRest)
+                    Text(wellbeing.sessionsDone > 0
+                         ? "rest \(Format.short(minutes: wellbeing.breakMinutes)) of \(Format.short(minutes: wellbeing.recommendedRest))"
+                         : "rest \(Format.short(minutes: wellbeing.breakMinutes))")
+                }
+            }
+            .font(.system(size: 13, weight: .medium)).monospacedDigit().padding(.top, 6)
+            Text("\(wellbeing.adviceIcon) \(wellbeing.advice)").font(.caption)
+                .foregroundStyle(.secondary).multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity)
     }
 }

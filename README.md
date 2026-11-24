@@ -91,7 +91,7 @@ Environment variables that make the app easier to test. Run the built binary dir
 | --- | --- |
 | `FOCUSPLUS_DATA_DIR=/path` | Keep the log in another folder, so tests do not touch real data |
 | `FOCUSPLUS_DEMO_SECONDS=5` | Start a focus session that many seconds long |
-| `FOCUSPLUS_DEMO_ACTION=extend15`, `break`, `note` or `dayoff` | Apply that action two seconds after launch. `note` sends a test notification, `dayoff` takes a day off for three seconds |
+| `FOCUSPLUS_DEMO_ACTION=extend15`, `break`, `breakdone`, `note` or `dayoff` | Apply that action two seconds after launch. `breakdone` runs a one second break, to see the window that follows it. `note` sends a test notification, `dayoff` takes a day off for three seconds |
 | `FOCUSPLUS_SHOW=panel,stats,log,settings,widgets,phone` | Open these windows at launch |
 | `FOCUSPLUS_SHOW_LATER=widgets` | The same list, opened four seconds after launch, to see the state after a short demo timer has ended |
 | `FOCUSPLUS_SETTINGS_TAB=0`, `1` or `2` | Which settings tab to show first |

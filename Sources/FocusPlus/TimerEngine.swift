@@ -190,7 +190,7 @@ final class TimerEngine: ObservableObject {
 
     /// Closes the focus session (crediting its coins) and starts a break.
     /// Without `minutes` the configured short or long break is used.
-    func startBreak(minutes: Int? = nil) {
+    func startBreak(minutes: Int? = nil, demoSeconds: Double? = nil) {
         let long = nextBreakIsLong
         finalizeBreak()
         finalizeSession()
@@ -199,7 +199,7 @@ final class TimerEngine: ObservableObject {
         breakStart = now()
         let length = minutes ?? (long ? settings.longBreakMinutes : settings.shortBreakMinutes)
         breakName = settings.breakPreset(minutes: length)?.name ?? "Break"
-        begin(seconds: Double(max(1, length) * 60))
+        begin(seconds: demoSeconds ?? Double(max(1, length) * 60))
     }
 
     /// For the phone: the person walked away when the timer ended and wants `minutes` more from now.
@@ -298,7 +298,13 @@ final class TimerEngine: ObservableObject {
 
     func tick() {
         let day = Calendar.current.startOfDay(for: now())
-        if day != today { today = day; settings.endDayOffIfOver(now: now()) }
+        if day != today {
+            today = day
+            settings.endDayOffIfOver(now: now())
+            // A prompt nobody answered belongs to the day it ended on. Close it, so yesterday's
+            // session is not shown as focus done today.
+            if runState == .finished { stop() }
+        }
 
         guard runState == .running, let endDate else { return }
         let left = max(0, endDate.timeIntervalSince(now()))
