@@ -138,7 +138,7 @@ struct PopoverView: View {
                 timerRing(size: 150)
                 VStack(alignment: .leading, spacing: 14) {
                     statBar(symbol: "bolt.fill", value: Format.duration(minutes: wellbeing.focusMinutes),
-                            detail: "\(wellbeing.sessionsDone) of \(wellbeing.sessionsGoal) sessions today · \(Int((wellbeing.focusShare * 100).rounded()))% goal",
+                            detail: "today \(wellbeing.sessionsDone) of \(wellbeing.sessionsGoal) sessions · \(Int((wellbeing.focusShare * 100).rounded()))%",
                             share: wellbeing.focusShare, color: Palette.ringFocus)
                     energyBlock(wellbeing)
                 }
@@ -209,7 +209,7 @@ struct PopoverView: View {
                 Text(value).font(.system(size: 19, weight: .bold, design: .rounded)).monospacedDigit()
             }
             bar(share: share, color: color)
-            Text(detail).font(.caption).foregroundStyle(.white.opacity(0.6))
+            Text(detail).font(.caption).foregroundStyle(.white.opacity(0.6)).lineLimit(1)
         }
     }
 

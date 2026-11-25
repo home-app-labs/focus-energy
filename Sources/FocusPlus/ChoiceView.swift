@@ -102,7 +102,7 @@ struct ChoiceView: View {
             HStack(spacing: 18) {
                 HStack(spacing: 5) {
                     Image(systemName: "bolt.fill").foregroundStyle(Palette.ringFocus)
-                    Text("\(wellbeing.sessionsDone) of \(wellbeing.sessionsGoal) sessions · \(Int((wellbeing.focusShare * 100).rounded()))% goal")
+                    Text("\(wellbeing.sessionsDone) of \(wellbeing.sessionsGoal) sessions · \(Int((wellbeing.focusShare * 100).rounded()))%")
                 }
                 HStack(spacing: 5) {
                     Text(wellbeing.mood.emoji)

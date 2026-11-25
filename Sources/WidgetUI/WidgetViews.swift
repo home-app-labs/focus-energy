@@ -222,7 +222,7 @@ public struct FocusWidgetView: View {
             bar(value: min(1, goalShare), color: WidgetPalette.focus)
             Text(point.coins > snapshot.goal
                     ? "+\(duration(point.coins - snapshot.goal)) over the \(duration(snapshot.goal)) limit"
-                    : "\(point.coins / max(snapshot.defaultFocusMinutes, 1)) of \(max(1, snapshot.goal / max(snapshot.defaultFocusMinutes, 1))) sessions today · \(percentText) goal")
+                    : "today \(point.coins / max(snapshot.defaultFocusMinutes, 1)) of \(max(1, snapshot.goal / max(snapshot.defaultFocusMinutes, 1))) sessions · \(percentText)")
                 .font(.system(size: 10)).foregroundStyle(.white.opacity(0.6)).lineLimit(1)
         }
     }
