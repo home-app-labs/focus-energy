@@ -4,15 +4,21 @@
 
 # Focus Energy
 
-A focus timer for the Mac that also looks after your breaks.
+**A free, open source Pomodoro-style focus timer for macOS that tracks your breaks and your energy.**
 
-Most timers count your work and forget your rest. Focus Energy tracks both and shows how much energy you have left for the day.
+Most Pomodoro timers count your work and forget your rest. Focus Energy tracks both: extend a session instead of restarting it, log coffee breaks and walks, and see how much energy you have left for the day. It lives in the menu bar, the Dock and in desktop widgets. No account, no tracking, no subscription.
 
-**[Download the installer](https://github.com/home-app-labs/focus-energy/releases/latest/download/Focus-Energy.pkg)** · [Website](https://homeapplabs.com/focus-energy/) · macOS 14 or later · free
+**[Download for Mac](https://github.com/home-app-labs/focus-energy/releases/latest/download/Focus-Energy.pkg)** · **[Website with a live demo](https://homeapplabs.com/focus-energy/)** · macOS 14 or later, Apple Silicon and Intel · MIT licence
 
 <p align="center">
-  <img src="https://homeapplabs.com/assets/img/focus-energy-running.png" width="360" alt="Focus Energy during a session">
+  <img src="docs/timer.webp" width="340" alt="Focus Energy timer window on macOS: a countdown ring, 7 of 15 sessions done today and energy at 91%">
+  <img src="docs/statistics.webp" width="390" alt="Focus Energy statistics: focus, rest and energy rings, a verdict for each day of the week, and time at the Mac">
 </p>
+<p align="center">
+  <img src="docs/widgets.webp" width="740" alt="Focus Energy desktop widgets for macOS in small, medium and large sizes">
+</p>
+
+More pictures, a demo you can click and answers to common questions are on **[homeapplabs.com/focus-energy](https://homeapplabs.com/focus-energy/)**.
 
 ## What it does
 
@@ -55,6 +61,7 @@ You need Xcode 15 or later.
 | `Sources/WidgetUI` | Views and the data snapshot shared by the app and the widget |
 | `Sources/FocusPlusWidget` | The desktop widget |
 | `Tests` | Unit tests for the timer and the log |
+| `docs` | Screenshots for this page |
 | `Resources` | Info.plist files, entitlements, the icon |
 | `scripts` | Icon drawing and the release script |
 | `Mobile` | An unfinished iPhone and Apple Watch companion. Experimental, not part of the releases |
