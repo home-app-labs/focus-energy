@@ -197,8 +197,8 @@ struct PopoverView: View {
         case (_, .finished): return "break is over"
         case (_, .paused): return "paused"
         case (.idle, _): return "ready"
-        case (.focus, _): return "\(Format.duration(minutes: engine.liveCoins)) focused"
-        default: return "\(Format.duration(minutes: engine.liveBreakMinutes)) rested"
+        case (.focus, _): return "\(Format.short(minutes: engine.liveCoins)) focused"
+        default: return "\(Format.short(minutes: engine.liveBreakMinutes)) rested"
         }
     }
 
